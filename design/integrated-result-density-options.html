@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-window-mode="wide">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATNetool - 综合网络诊断</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+            font-synthesis: none;
+            font-optical-sizing: auto;
+            letter-spacing: 0;
+            --bg: #111214;
+            --sidebar: rgba(24, 25, 28, .84);
+            --toolbar: rgba(17, 18, 20, .72);
+            --surface: #1c1d20;
+            --surface-raised: #242529;
+            --surface-pressed: #2c2d32;
+            --field: #151619;
+            --line: rgba(255, 255, 255, .10);
+            --line-strong: rgba(255, 255, 255, .16);
+            --text: #f5f5f7;
+            --secondary: #b7b7bd;
+            --tertiary: #85858d;
+            --blue: #0a84ff;
+            --blue-strong: #409cff;
+            --green: #30d158;
+            --orange: #ff9f0a;
+            --red: #ff453a;
+            --scrim: rgba(0, 0, 0, .42);
+            --shadow: 0 14px 40px rgba(0, 0, 0, .22), 0 1px 0 rgba(255, 255, 255, .04) inset;
+            --ease-out: cubic-bezier(.23, 1, .32, 1);
+            --ease-drawer: cubic-bezier(.32, .72, 0, 1);
+            --mono: "SFMono-Regular", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+        }
+
+        html[data-theme="light"] {
+            color-scheme: light;
+            --bg: #f5f5f7;
+            --sidebar: rgba(235, 235, 240, .82);
+            --toolbar: rgba(245, 245, 247, .74);
+            --surface: #ffffff;
+            --surface-raised: #f5f5f7;
+            --surface-pressed: #e9e9ed;
+            --field: #f2f2f5;
+            --line: rgba(60, 60, 67, .14);
+            --line-strong: rgba(60, 60, 67, .22);
+            --text: #1d1d1f;
+            --secondary: #515156;
+            --tertiary: #76767d;
+            --blue: #007aff;
+            --blue-strong: #0066d6;
+            --green: #248a3d;
+            --orange: #c66a00;
+            --red: #d70015;
+            --scrim: rgba(30, 30, 32, .25);
+            --shadow: 0 14px 36px rgba(25, 25, 32, .08), 0 1px 0 rgba(255, 255, 255, .8) inset;
+        }
+
+        * { box-sizing: border-box; }
+        html { min-width: 800px; min-height: 100%; background: var(--bg); }
+        body { min-height: 100vh; margin: 0; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
+        button, input, select { font: inherit; letter-spacing: 0; }
+        button { color: inherit; cursor: pointer; }
+        button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 42%, transparent); outline-offset: 2px; }
+        [hidden] { display: none !important; }
+
+        .app { display: grid; min-height: 100vh; grid-template-columns: 212px minmax(0, 1fr); }
+        .sidebar {
+            position: sticky;
+            z-index: 12;
+            top: 0;
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+            padding: 18px 12px 14px;
+            background: var(--sidebar);
+            -webkit-backdrop-filter: blur(28px) saturate(160%);
+            backdrop-filter: blur(28px) saturate(160%);
+            box-shadow: -1px 0 0 var(--line) inset;
+        }
+        .brand { display: flex; min-height: 44px; align-items: center; gap: 10px; padding: 0 10px; }
+        .brand-mark { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 8px; color: white; background: linear-gradient(145deg, #0a84ff, #30b0c7); box-shadow: 0 6px 14px rgba(10, 132, 255, .24); font-size: 11px; font-weight: 750; }
+        .brand strong { display: block; font-size: 14px; line-height: 1.2; }
+        .brand small { display: block; margin-top: 2px; color: var(--tertiary); font-size: 10px; line-height: 1.2; }
+        .nav-label { margin: 23px 10px 7px; color: var(--tertiary); font-size: 10px; font-weight: 600; }
+        .sidebar nav { display: grid; gap: 3px; }
+        .nav-item { display: flex; min-height: 40px; align-items: center; gap: 9px; padding: 0 9px; border: 0; border-radius: 7px; color: var(--secondary); background: transparent; text-align: left; transition: color 150ms ease, background-color 150ms ease, transform 100ms var(--ease-out); }
+        .nav-glyph { display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 6px; color: var(--secondary); background: var(--surface-raised); box-shadow: 0 0 0 1px var(--line) inset; font-size: 10px; font-weight: 700; }
+        .nav-item strong { font-size: 13px; font-weight: 560; }
+        .nav-item.active { color: var(--text); background: color-mix(in srgb, var(--blue) 18%, transparent); }
+        .nav-item.active .nav-glyph { color: white; background: var(--blue); box-shadow: 0 0 0 1px color-mix(in srgb, white 12%, transparent) inset; }
+        .nav-item:active { transform: scale(.98); }
+        .sidebar-status { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 9px; margin-top: auto; padding: 11px 10px; color: var(--secondary); font-size: 11px; line-height: 1.4; }
+        .status-light { width: 8px; height: 8px; margin-top: 3px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 14%, transparent); }
+
+        .content { min-width: 0; }
+        .toolbar {
+            position: sticky;
+            z-index: 10;
+            top: 0;
+            display: flex;
+            min-height: 64px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 8px 24px;
+            background: var(--toolbar);
+            -webkit-backdrop-filter: blur(24px) saturate(170%);
+            backdrop-filter: blur(24px) saturate(170%);
+        }
+        .toolbar::after { position: absolute; right: 0; bottom: -10px; left: 0; height: 10px; content: ""; background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 34%, transparent), transparent); pointer-events: none; }
+        .toolbar h1 { margin: 0; font-size: 17px; font-weight: 650; line-height: 1.2; }
+        .toolbar p { margin: 3px 0 0; color: var(--tertiary); font-size: 11px; line-height: 1.2; }
+        .toolbar-actions { display: flex; align-items: center; gap: 9px; }
+        .window-mode-toggle { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 7px; background: color-mix(in srgb, var(--surface-raised) 84%, transparent); box-shadow: 0 0 0 1px var(--line) inset; }
+        .window-mode-toggle button { height: 28px; padding: 0 9px; border: 0; border-radius: 5px; color: var(--tertiary); background: transparent; font-size: 10px; transition: color 150ms ease, background-color 150ms ease, transform 100ms var(--ease-out); }
+        .window-mode-toggle button.active { color: var(--text); background: var(--surface); box-shadow: 0 1px 5px rgba(0, 0, 0, .14), 0 0 0 1px var(--line) inset; }
+        .window-mode-toggle button:active { transform: scale(.96); }
+        .last-run { padding: 6px 10px; border-radius: 999px; color: var(--secondary); background: color-mix(in srgb, var(--surface-raised) 84%, transparent); font-size: 10px; box-shadow: 0 0 0 1px var(--line) inset; }
+        .icon-button { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 50%; color: var(--secondary); background: color-mix(in srgb, var(--surface-raised) 84%, transparent); box-shadow: 0 0 0 1px var(--line) inset; font-size: 16px; transition: color 150ms ease, background-color 150ms ease, transform 100ms var(--ease-out); }
+        .icon-button:active { transform: scale(.94); background: var(--surface-pressed); }
+
+        main { width: min(100%, 1420px); margin: 0 auto; padding: 18px 24px 40px; }
+        .control-bar { position: relative; display: grid; grid-template-columns: minmax(250px, 1.5fr) repeat(3, minmax(116px, .58fr)) 132px; gap: 10px; padding: 12px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset, var(--shadow); overflow: hidden; }
+        .control-bar.integrated-controls { grid-template-columns: minmax(260px, .95fr) minmax(360px, 1.2fr) 132px; }
+        .control-bar label { display: grid; min-width: 0; gap: 5px; color: var(--secondary); font-size: 10px; font-weight: 550; }
+        input, select { width: 100%; height: 38px; border: 0; border-radius: 6px; color: var(--text); background-color: var(--field); box-shadow: 0 0 0 1px var(--line) inset; }
+        input { padding: 0 11px; }
+        select { padding: 0 30px 0 10px; color-scheme: dark; appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--tertiary) 50%), linear-gradient(135deg, var(--tertiary) 50%, transparent 50%); background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%; background-repeat: no-repeat; background-size: 5px 5px; }
+        html[data-theme="light"] select { color-scheme: light; }
+        select option { color: var(--text); background: var(--surface); }
+        .run-button { align-self: end; height: 38px; border: 0; border-radius: 6px; color: white; background: var(--blue); font-weight: 650; box-shadow: 0 1px 0 rgba(255, 255, 255, .16) inset, 0 5px 14px color-mix(in srgb, var(--blue) 22%, transparent); transition: background-color 150ms ease, transform 100ms var(--ease-out); }
+        .run-button:hover { background: var(--blue-strong); }
+        .run-button:active { transform: scale(.97); }
+        .run-button:disabled { cursor: default; opacity: .72; }
+        .run-progress { position: absolute; right: 0; bottom: 0; left: 0; height: 2px; background: transparent; overflow: hidden; }
+        .run-progress::after { display: block; width: var(--progress, 0%); height: 100%; content: ""; background: var(--blue-strong); transition: width 1600ms linear; }
+        .strategy-control { display: grid; min-width: 0; align-content: end; gap: 5px; color: var(--secondary); font-size: 10px; font-weight: 550; }
+        .manual-proxy-input { margin-top: 2px; }
+        .diagnostic-stages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 10px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; overflow: hidden; }
+        .diagnostic-stage { min-width: 0; padding: 10px 12px; border-right: 1px solid var(--line); }
+        .diagnostic-stage:last-child { border-right: 0; }
+        .diagnostic-stage span { display: flex; align-items: center; gap: 6px; color: var(--tertiary); font-family: var(--mono); font-size: 8px; }
+        .diagnostic-stage span::after { width: 7px; height: 7px; margin-left: auto; border-radius: 50%; content: ""; background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 12%, transparent); }
+        .diagnostic-stage strong { display: block; margin-top: 5px; font-size: 11px; }
+        .diagnostic-stage p { margin: 3px 0 0; overflow: hidden; color: var(--secondary); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+
+        .result-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 24px 2px 12px; }
+        .result-header h2 { margin: 0; font-size: 24px; font-weight: 680; line-height: 1.1; }
+        .result-header p { margin: 5px 0 0; color: var(--secondary); font-size: 12px; }
+        .result-status { display: flex; align-items: center; gap: 7px; color: var(--orange); font-size: 11px; font-weight: 650; }
+        .result-status::before { width: 8px; height: 8px; border-radius: 50%; content: ""; background: var(--orange); box-shadow: 0 0 0 4px color-mix(in srgb, var(--orange) 14%, transparent); }
+
+        .summary-bar { display: grid; grid-template-columns: 1.15fr repeat(4, 1fr); margin-bottom: 10px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; overflow: hidden; }
+        .summary-cell { min-width: 0; padding: 11px 13px; border-right: 1px solid var(--line); }
+        .summary-cell:last-child { border-right: 0; }
+        .summary-cell span { display: block; color: var(--tertiary); font-size: 9px; font-weight: 600; }
+        .summary-cell strong { display: block; overflow: hidden; margin-top: 4px; font-family: var(--mono); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+        .summary-cell:first-child strong { color: var(--orange); font-family: inherit; }
+
+        .finding-toolbar { display: flex; min-height: 46px; align-items: center; justify-content: space-between; gap: 12px; margin: 0 2px; }
+        .finding-toolbar strong { font-size: 13px; }
+        .finding-toolbar span { margin-left: 7px; color: var(--tertiary); font-size: 11px; }
+        .segmented { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 7px; background: color-mix(in srgb, var(--surface-pressed) 82%, transparent); box-shadow: 0 0 0 1px var(--line) inset; }
+        .segmented button { min-width: 58px; height: 28px; padding: 0 9px; border: 0; border-radius: 5px; color: var(--secondary); background: transparent; font-size: 10px; transition: color 150ms ease, background-color 150ms ease, transform 100ms var(--ease-out); }
+        .segmented button.active { color: var(--text); background: var(--surface); box-shadow: 0 1px 5px rgba(0, 0, 0, .16), 0 0 0 1px var(--line) inset; }
+        .segmented button:active { transform: scale(.96); }
+
+        .risk-workspace { display: grid; grid-template-columns: minmax(330px, .84fr) minmax(500px, 1.34fr); border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset, var(--shadow); overflow: hidden; }
+        .lead-risk { position: relative; min-width: 0; padding: 16px; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--orange) 5%, var(--surface)); }
+        .lead-risk::before { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; content: ""; background: var(--orange); }
+        .lead-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .severity { color: var(--orange); font-size: 10px; font-weight: 700; }
+        .info-tip { position: relative; display: grid; width: 22px; height: 22px; place-items: center; border: 0; border-radius: 50%; color: var(--secondary); background: var(--surface-raised); box-shadow: 0 0 0 1px var(--line) inset; font-family: var(--mono); font-size: 10px; }
+        .info-tip::after { position: absolute; z-index: 18; top: calc(100% + 7px); right: 0; width: 260px; padding: 9px 10px; border-radius: 7px; color: var(--text); background: color-mix(in srgb, var(--surface-raised) 94%, transparent); box-shadow: var(--shadow), 0 0 0 1px var(--line) inset; content: attr(data-tooltip); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 11px; font-weight: 400; line-height: 1.5; opacity: 0; pointer-events: none; transform: translateY(-4px) scale(.97); transform-origin: top right; transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
+        .info-tip:hover::after, .info-tip:focus-visible::after { opacity: 1; transform: translateY(0) scale(1); }
+        .code { color: var(--tertiary); font-family: var(--mono); font-size: 9px; }
+        .lead-risk .code { display: block; margin-top: 11px; color: var(--orange); }
+        .lead-risk h3 { margin: 4px 0 0; font-size: 19px; font-weight: 680; line-height: 1.25; }
+        .lead-risk > p { margin: 7px 0 0; color: var(--secondary); font-size: 11px; line-height: 1.55; }
+        .path-compare { display: grid; grid-template-columns: 1fr auto 1fr auto; align-items: center; gap: 9px; margin-top: 12px; padding: 9px 10px; border-radius: 7px; background: var(--field); box-shadow: 0 0 0 1px var(--line) inset; }
+        .path-compare span { display: block; color: var(--tertiary); font-size: 9px; }
+        .path-compare strong { display: block; margin-top: 3px; font-family: var(--mono); font-size: 12px; }
+        .path-arrow { color: var(--tertiary); font-family: var(--mono); }
+        .path-delta { padding: 4px 6px; border-radius: 5px; color: var(--green) !important; background: color-mix(in srgb, var(--green) 12%, transparent); font-family: var(--mono); font-size: 10px !important; }
+        .lead-actions { display: flex; gap: 8px; margin-top: 11px; }
+        .secondary-button { min-height: 34px; padding: 0 11px; border: 0; border-radius: 6px; color: var(--text); background: var(--surface-raised); box-shadow: 0 0 0 1px var(--line-strong) inset; font-size: 10px; font-weight: 600; transition: background-color 150ms ease, transform 100ms var(--ease-out); }
+        .secondary-button.primary { color: var(--blue-strong); }
+        .secondary-button:active { transform: scale(.96); background: var(--surface-pressed); }
+
+        .risk-queue { min-width: 0; }
+        .group-head { display: flex; min-height: 39px; align-items: center; justify-content: space-between; padding: 0 13px; border-bottom: 1px solid var(--line); }
+        .group-head strong { font-size: 11px; font-weight: 650; }
+        .group-head span { color: var(--tertiary); font-family: var(--mono); font-size: 9px; }
+        .risk-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .finding-row { display: grid; min-width: 0; min-height: 76px; grid-template-columns: 8px minmax(0, 1fr) 18px; align-items: start; gap: 9px; padding: 11px 12px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); color: inherit; background: transparent; text-align: left; transition: background-color 150ms ease, transform 100ms var(--ease-out); }
+        .finding-row:nth-child(even) { border-right: 0; }
+        .finding-row:nth-last-child(-n + 2) { border-bottom: 0; }
+        .dot { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: var(--orange); }
+        .dot.healthy { background: var(--green); }
+        .dot.info { background: var(--tertiary); }
+        .item-title { display: block; overflow: hidden; margin-top: 2px; color: var(--text); font-size: 12px; font-weight: 620; text-overflow: ellipsis; white-space: nowrap; }
+        .detail { display: block; overflow: hidden; margin-top: 3px; color: var(--secondary); font-size: 10px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+        .chevron { align-self: center; color: var(--tertiary); font-family: var(--mono); font-size: 14px; }
+        .finding-row:active, .support-row:active, .action-row:active { transform: scale(.985); background: var(--surface-pressed); }
+
+        .support-group, .action-group { margin-top: 10px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; overflow: hidden; }
+        .support-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .support-row { display: grid; min-width: 0; min-height: 53px; grid-template-columns: 8px minmax(0, 1fr); align-items: center; gap: 9px; padding: 8px 11px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); color: inherit; background: transparent; text-align: left; transition: background-color 150ms ease, transform 100ms var(--ease-out); }
+        .support-row:nth-child(4n) { border-right: 0; }
+        .support-row:nth-last-child(-n + 4) { border-bottom: 0; }
+        .support-row .item-title { font-size: 11px; }
+        .actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .action-row { display: grid; min-width: 0; min-height: 52px; grid-template-columns: 23px minmax(0, 1fr) 18px; align-items: center; gap: 8px; padding: 8px 12px; border: 0; border-right: 1px solid var(--line); color: inherit; background: transparent; text-align: left; transition: background-color 150ms ease, transform 100ms var(--ease-out); }
+        .action-row:last-child { border-right: 0; }
+        .action-row .code { color: var(--blue-strong); }
+        .action-row .item-title { font-size: 11px; }
+
+        .module-tabs {
+            position: sticky;
+            z-index: 9;
+            top: 64px;
+            display: flex;
+            min-height: 48px;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 24px;
+            background: var(--toolbar);
+            -webkit-backdrop-filter: blur(24px) saturate(170%);
+            backdrop-filter: blur(24px) saturate(170%);
+            box-shadow: 0 -1px 0 var(--line) inset;
+        }
+        .module-tab { min-width: 106px; height: 34px; padding: 0 14px; border: 0; border-radius: 7px; color: var(--secondary); background: transparent; font-size: 11px; font-weight: 560; transition: color 150ms ease, background-color 150ms ease, transform 100ms var(--ease-out); }
+        .module-tab.active { color: var(--text); background: var(--surface-raised); box-shadow: 0 1px 5px rgba(0, 0, 0, .14), 0 0 0 1px var(--line) inset; }
+        .module-tab:active { transform: scale(.97); }
+        .module-view { min-width: 0; }
+        .feature-view { display: grid; gap: 12px; }
+        .feature-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin: 2px 2px 6px; }
+        .feature-header h2 { margin: 0; font-size: 24px; font-weight: 680; line-height: 1.12; }
+        .feature-header p { margin: 5px 0 0; color: var(--secondary); font-size: 12px; }
+        .feature-badge { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--green) 22%, transparent) inset; font-size: 10px; font-weight: 650; }
+        .feature-badge.warning { color: var(--orange); background: color-mix(in srgb, var(--orange) 10%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--orange) 22%, transparent) inset; }
+        .feature-controls { display: grid; grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(126px, .55fr)) 142px; gap: 10px; padding: 12px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset, var(--shadow); }
+        .feature-controls.cols-3 { grid-template-columns: minmax(220px, 1fr) minmax(180px, .7fr) 142px; }
+        .feature-controls label, .field { display: grid; min-width: 0; align-content: end; gap: 5px; color: var(--secondary); font-size: 10px; font-weight: 550; }
+        .feature-controls .run-button { width: 100%; }
+        .inline-segmented { display: flex; height: 38px; padding: 3px; border-radius: 6px; background: var(--field); box-shadow: 0 0 0 1px var(--line) inset; }
+        .inline-segmented button { min-width: 74px; flex: 1; border: 0; border-radius: 4px; color: var(--secondary); background: transparent; font-size: 10px; }
+        .inline-segmented button.active { color: var(--text); background: var(--surface-raised); box-shadow: 0 1px 4px rgba(0, 0, 0, .14); }
+        .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; overflow: hidden; }
+        .metric-grid.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        .metric { min-width: 0; padding: 11px 13px; border-right: 1px solid var(--line); }
+        .metric:last-child { border-right: 0; }
+        .metric span { display: block; color: var(--tertiary); font-size: 9px; }
+        .metric strong { display: block; overflow: hidden; margin-top: 4px; font-family: var(--mono); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+        .metric strong.good { color: var(--green); }
+        .metric strong.warn { color: var(--orange); }
+        .data-surface { border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; overflow: hidden; }
+        .data-surface-head { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 13px; border-bottom: 1px solid var(--line); }
+        .data-surface-head > div:first-child { display: flex; align-items: baseline; gap: 8px; }
+        .data-surface-head strong { font-size: 12px; }
+        .data-surface-head span { color: var(--tertiary); font-family: var(--mono); font-size: 9px; }
+        .data-surface-head .segmented { margin: 0; }
+        .data-surface-head > .inline-segmented {
+            display: grid;
+            width: 168px;
+            height: 32px;
+            flex: 0 0 168px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: stretch;
+            gap: 2px;
+            padding: 3px;
+        }
+        .data-surface-head > .inline-segmented button {
+            width: 100%;
+            min-width: 0;
+            height: 26px;
+            padding: 0 8px;
+            line-height: 26px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .data-table { width: 100%; }
+        .data-row { display: grid; grid-template-columns: var(--columns, 1.1fr repeat(4, 1fr)); min-height: 48px; align-items: center; border-bottom: 1px solid var(--line); }
+        .data-row:last-child { border-bottom: 0; }
+        .data-row > span, .data-row > strong { min-width: 0; padding: 9px 12px; overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+        .data-row > strong { font-size: 11px; font-weight: 620; }
+        .data-row.head { min-height: 34px; color: var(--tertiary); background: var(--field); font-family: var(--mono); }
+        .data-row.head > span { font-size: 8px; font-weight: 600; }
+        .state { display: inline-flex; width: fit-content; align-items: center; gap: 6px; color: var(--secondary); }
+        .state::before { width: 7px; height: 7px; border-radius: 50%; content: ""; background: var(--green); }
+        .state.warn::before { background: var(--orange); }
+        .state.muted::before { background: var(--tertiary); }
+        .split-view { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, .55fr); gap: 10px; }
+        .chart-surface { min-width: 0; padding: 13px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; }
+        .chart-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+        .chart-title strong { font-size: 12px; }
+        .chart-title span { color: var(--tertiary); font-family: var(--mono); font-size: 9px; }
+        .chart { display: block; width: 100%; height: 220px; border-radius: 6px; background: var(--field); }
+        .chart-grid { stroke: var(--line); stroke-width: 1; }
+        .chart-line { fill: none; stroke: var(--blue-strong); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+        .chart-area { fill: color-mix(in srgb, var(--blue) 14%, transparent); }
+        .chart-threshold { stroke: var(--orange); stroke-width: 1; stroke-dasharray: 5 6; vector-effect: non-scaling-stroke; }
+        .event-list { display: grid; }
+        .event-row { display: grid; min-height: 55px; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+        .event-row:last-child { border-bottom: 0; }
+        .event-row > span { color: var(--tertiary); font-family: var(--mono); font-size: 9px; }
+        .event-row strong { display: block; font-size: 11px; }
+        .event-row small { display: block; margin-top: 3px; color: var(--secondary); font-size: 10px; }
+        .site-selector { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; padding: 12px; }
+        .site-selector label, .port-preset { display: flex; min-height: 42px; align-items: center; gap: 8px; padding: 0 10px; border-radius: 6px; color: var(--secondary); background: var(--field); box-shadow: 0 0 0 1px var(--line) inset; font-size: 10px; }
+        .site-selector input, .port-preset input { width: 15px; height: 15px; accent-color: var(--blue); }
+        .map-surface { position: relative; min-height: 300px; border-radius: 8px; background: radial-gradient(circle at 72% 42%, color-mix(in srgb, var(--blue) 8%, transparent), transparent 24%), var(--field); box-shadow: 0 0 0 1px var(--line) inset; overflow: hidden; }
+        .map-surface svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .map-land { fill: color-mix(in srgb, var(--secondary) 12%, transparent); stroke: var(--line-strong); stroke-width: 1; }
+        .map-route { fill: none; stroke: var(--blue-strong); stroke-width: 2; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }
+        .map-node { fill: var(--surface); stroke: var(--blue-strong); stroke-width: 2; vector-effect: non-scaling-stroke; }
+        .map-labels { position: absolute; inset: 0; pointer-events: none; }
+        .map-label { position: absolute; padding: 5px 7px; border-radius: 5px; color: var(--text); background: color-mix(in srgb, var(--surface-raised) 90%, transparent); box-shadow: 0 0 0 1px var(--line) inset; font-size: 9px; }
+        .raw-hops { --columns: 50px 1fr 90px 110px 100px; }
+        .overview-route { margin-bottom: 10px; }
+        .overview-route [data-trace-panel] { height: 220px; }
+        .overview-route .map-surface { min-height: 220px; border-radius: 0; }
+        .overview-route .raw-hops { overflow-y: auto; }
+        .protocol-presets { display: flex; flex-wrap: wrap; gap: 7px; padding: 11px 12px; border-top: 1px solid var(--line); }
+        .port-preset { min-height: 32px; }
+        .environment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .environment-card { min-width: 0; padding: 13px; border-radius: 8px; background: var(--surface); box-shadow: 0 0 0 1px var(--line) inset; }
+        .environment-card > span { color: var(--tertiary); font-family: var(--mono); font-size: 9px; }
+        .environment-card h3 { margin: 6px 0 0; font-size: 14px; }
+        .environment-card dl { display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; margin: 13px 0 0; font-size: 10px; }
+        .environment-card dt { color: var(--tertiary); }
+        .environment-card dd { min-width: 0; margin: 0; overflow: hidden; color: var(--secondary); text-overflow: ellipsis; white-space: nowrap; }
+        .candidate-best { background: color-mix(in srgb, var(--green) 5%, transparent); }
+        .history-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .history-actions { display: flex; align-items: center; gap: 8px; }
+        .small-button { min-height: 32px; padding: 0 10px; border: 0; border-radius: 6px; color: var(--text); background: var(--surface-raised); box-shadow: 0 0 0 1px var(--line) inset; font-size: 10px; }
+        .small-button:disabled { color: var(--tertiary); cursor: default; }
+        .history-check { display: grid; width: 18px; place-items: center; }
+        .history-check input { width: 14px; height: 14px; accent-color: var(--blue); }
+        .comparison-strip { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); }
+        .comparison-strip div { padding: 11px 13px; border-right: 1px solid var(--line); }
+        .comparison-strip div:last-child { border-right: 0; }
+        .comparison-strip span { display: block; color: var(--tertiary); font-size: 9px; }
+        .comparison-strip strong { display: block; margin-top: 4px; font-family: var(--mono); font-size: 12px; }
+
+        @media (hover: hover) and (pointer: fine) {
+            .module-tab:hover, .inline-segmented button:hover { color: var(--text); background: var(--surface-raised); }
+            .data-row:not(.head):hover { background: color-mix(in srgb, var(--surface-raised) 72%, transparent); }
+            .small-button:hover { background: var(--surface-pressed); }
+        }
+
+        .drawer-scrim { position: fixed; z-index: 30; inset: 0; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity 180ms var(--ease-out); }
+        .drawer-scrim.open { opacity: 1; pointer-events: auto; }
+        .drawer { position: fixed; z-index: 31; top: 0; right: 0; display: flex; width: min(430px, 52vw); height: 100%; flex-direction: column; background: color-mix(in srgb, var(--surface) 92%, transparent); -webkit-backdrop-filter: blur(30px) saturate(170%); backdrop-filter: blur(30px) saturate(170%); box-shadow: -24px 0 60px rgba(0, 0, 0, .28), -1px 0 0 var(--line); transform: translateX(102%); transition: transform 320ms var(--ease-drawer); will-change: transform; }
+        .drawer.open { transform: translateX(0); }
+        .drawer.dragging { transition: none; }
+        .drawer header { display: flex; min-height: 64px; align-items: center; justify-content: space-between; padding: 8px 16px; box-shadow: 0 -1px 0 var(--line) inset; touch-action: none; }
+        .drawer header strong { font-size: 15px; }
+        .drawer-close { display: grid; width: 32px; height: 32px; place-items: center; border: 0; border-radius: 50%; color: var(--secondary); background: var(--surface-raised); box-shadow: 0 0 0 1px var(--line) inset; font-size: 18px; transition: transform 100ms var(--ease-out); }
+        .drawer-close:active { transform: scale(.92); }
+        .drawer-content { padding: 18px; overflow: auto; }
+        .drawer-content h3 { margin: 7px 0 0; font-size: 21px; line-height: 1.25; }
+        .drawer-content p { margin: 10px 0 0; color: var(--secondary); font-size: 12px; line-height: 1.65; }
+        .evidence-block { margin-top: 18px; padding: 12px; border-radius: 8px; background: var(--field); box-shadow: 0 0 0 1px var(--line) inset; }
+        .evidence-block span { display: block; color: var(--tertiary); font-size: 10px; }
+        .evidence-block strong { display: block; margin-top: 5px; font-family: var(--mono); font-size: 12px; }
+
+        .toast { position: fixed; z-index: 50; bottom: 24px; left: 50%; max-width: min(440px, 70vw); padding: 10px 14px; border-radius: 999px; color: var(--text); background: color-mix(in srgb, var(--surface-raised) 92%, transparent); -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%); box-shadow: var(--shadow), 0 0 0 1px var(--line) inset; font-size: 11px; opacity: 0; pointer-events: none; transform: translate(-50%, 8px) scale(.97); transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
+        .toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+
+        @media (hover: hover) and (pointer: fine) {
+            .nav-item:hover { color: var(--text); background: color-mix(in srgb, var(--surface-raised) 70%, transparent); }
+            .finding-row:hover, .support-row:hover, .action-row:hover { background: var(--surface-raised); }
+            .icon-button:hover { color: var(--text); background: var(--surface-pressed); }
+        }
+
+        @media (max-width: 1120px) {
+            .control-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .control-bar.integrated-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .control-bar label:first-child { grid-column: 1 / -1; }
+            .run-button { grid-column: 1 / -1; }
+            .risk-workspace { grid-template-columns: 1fr; }
+            .lead-risk { border-right: 0; border-bottom: 1px solid var(--line); }
+            .support-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .support-row:nth-child(2n) { border-right: 0; }
+            .support-row:nth-child(n) { border-bottom: 1px solid var(--line); }
+            .support-row:nth-last-child(-n + 2) { border-bottom: 0; }
+            .actions { grid-template-columns: 1fr; }
+            .action-row { border-right: 0; border-bottom: 1px solid var(--line); }
+            .action-row:last-child { border-bottom: 0; }
+            .feature-controls, .feature-controls.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .feature-controls .run-button { grid-column: 1 / -1; }
+            .metric-grid.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .metric-grid.six .metric:nth-child(3) { border-right: 0; }
+            .metric-grid.six .metric:nth-child(-n + 3) { border-bottom: 1px solid var(--line); }
+            .split-view { grid-template-columns: 1fr; }
+            .site-selector { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .diagnostic-stages { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .diagnostic-stage:nth-child(3) { border-right: 0; }
+            .diagnostic-stage:nth-child(n + 4) { border-top: 1px solid var(--line); }
+        }
+
+        @media (max-width: 880px) {
+            .app { grid-template-columns: 174px minmax(0, 1fr); }
+            .sidebar { padding-right: 9px; padding-left: 9px; }
+            .toolbar { padding-right: 14px; padding-left: 14px; }
+            .module-tabs { top: 64px; padding-right: 14px; padding-left: 14px; overflow-x: auto; }
+            .module-tab { min-width: 98px; }
+            main { padding-right: 14px; padding-left: 14px; }
+            .last-run { display: none; }
+            .result-header { align-items: flex-start; flex-direction: column; }
+            .summary-bar { grid-template-columns: repeat(2, 1fr); }
+            .summary-cell { border-bottom: 1px solid var(--line); }
+            .summary-cell:nth-child(2n) { border-right: 0; }
+            .summary-cell:last-child { grid-column: 1 / -1; border-right: 0; border-bottom: 0; }
+            .finding-toolbar { align-items: flex-start; flex-direction: column; padding: 8px 0; }
+            .segmented { width: 100%; }
+            .segmented button { min-width: 0; flex: 1; }
+            .risk-list { grid-template-columns: 1fr; }
+            .finding-row { border-right: 0; }
+            .finding-row:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+            .feature-header { align-items: flex-start; flex-direction: column; }
+            .feature-controls, .feature-controls.cols-3 { grid-template-columns: 1fr; }
+            .feature-controls .run-button { grid-column: auto; }
+            .metric-grid, .metric-grid.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .metric-grid .metric, .metric-grid.six .metric { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+            .metric-grid .metric:nth-child(2n), .metric-grid.six .metric:nth-child(2n) { border-right: 0; }
+            .metric-grid .metric:nth-last-child(-n + 2), .metric-grid.six .metric:nth-last-child(-n + 2) { border-bottom: 0; }
+            .environment-grid { grid-template-columns: 1fr; }
+            .site-selector { grid-template-columns: 1fr; }
+            .data-row { min-width: 700px; }
+            .data-table { overflow-x: auto; }
+            .chart { height: 190px; }
+        }
+
+        html[data-window-mode="compact"] body {
+            background: color-mix(in srgb, var(--bg) 92%, var(--surface-raised));
+        }
+        html[data-window-mode="compact"] .app {
+            width: min(1120px, 100%);
+            height: min(760px, calc(100vh - 36px));
+            min-height: 0;
+            margin: 18px auto;
+            grid-template-columns: 182px minmax(0, 1fr);
+            border-radius: 12px;
+            background: var(--bg);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, .26), 0 0 0 1px var(--line);
+            overflow: hidden;
+        }
+        html[data-window-mode="compact"] .sidebar {
+            position: relative;
+            top: 0;
+            width: auto;
+            height: 100%;
+            padding: 16px 10px 13px;
+        }
+        html[data-window-mode="compact"] .content { height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+        html[data-window-mode="compact"] .toolbar { top: 0; min-height: 62px; padding: 7px 16px; }
+        html[data-window-mode="compact"] .toolbar-title { min-width: 0; }
+        html[data-window-mode="compact"] .toolbar h1 { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+        html[data-window-mode="compact"] .toolbar p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        html[data-window-mode="compact"] .last-run { display: none; }
+        html[data-window-mode="compact"] .module-tabs { top: 62px; min-height: 46px; padding: 6px 16px; overflow-x: auto; scrollbar-width: none; }
+        html[data-window-mode="compact"] .module-tabs::-webkit-scrollbar { display: none; }
+        html[data-window-mode="compact"] .module-tab { min-width: 102px; height: 34px; padding: 0 12px; }
+        html[data-window-mode="compact"] main { padding: 14px 16px 28px; }
+        html[data-window-mode="compact"] .control-bar.integrated-controls {
+            grid-template-columns: minmax(230px, .9fr) minmax(330px, 1.2fr) 128px;
+            gap: 9px;
+            padding: 11px;
+        }
+        html[data-window-mode="compact"] .control-bar.integrated-controls > label:first-child,
+        html[data-window-mode="compact"] .control-bar.integrated-controls .strategy-control,
+        html[data-window-mode="compact"] .control-bar.integrated-controls .run-button { grid-column: auto; }
+        html[data-window-mode="compact"] .diagnostic-stages { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        html[data-window-mode="compact"] .diagnostic-stage { border-top: 0; }
+        html[data-window-mode="compact"] .diagnostic-stage:nth-child(3) { border-right: 1px solid var(--line); }
+        html[data-window-mode="compact"] .diagnostic-stage:last-child { border-right: 0; }
+        html[data-window-mode="compact"] .result-header { align-items: flex-end; flex-direction: row; margin: 20px 2px 10px; }
+        html[data-window-mode="compact"] .result-header h2,
+        html[data-window-mode="compact"] .feature-header h2 { font-size: 21px; }
+        html[data-window-mode="compact"] .summary-bar { grid-template-columns: 1.15fr repeat(4, minmax(0, 1fr)); }
+        html[data-window-mode="compact"] .summary-cell { grid-column: auto; border-right: 1px solid var(--line); border-bottom: 0; }
+        html[data-window-mode="compact"] .summary-cell:last-child { grid-column: auto; border-right: 0; border-bottom: 0; }
+        html[data-window-mode="compact"] .finding-toolbar { align-items: center; flex-direction: row; padding: 0; }
+        html[data-window-mode="compact"] .risk-workspace { grid-template-columns: minmax(310px, .84fr) minmax(470px, 1.34fr); }
+        html[data-window-mode="compact"] .lead-risk { border-right: 1px solid var(--line); border-bottom: 0; }
+        html[data-window-mode="compact"] .risk-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        html[data-window-mode="compact"] .finding-row { border-right: 1px solid var(--line); }
+        html[data-window-mode="compact"] .finding-row:nth-child(even) { border-right: 0; }
+        html[data-window-mode="compact"] .finding-row:nth-last-child(2) { border-bottom: 0; }
+        html[data-window-mode="compact"] .support-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        html[data-window-mode="compact"] .support-row:nth-child(n) { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+        html[data-window-mode="compact"] .support-row:nth-child(4n) { border-right: 0; }
+        html[data-window-mode="compact"] .support-row:nth-last-child(-n + 4) { border-bottom: 0; }
+        html[data-window-mode="compact"] .actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        html[data-window-mode="compact"] .action-row { border-right: 1px solid var(--line); border-bottom: 0; }
+        html[data-window-mode="compact"] .action-row:last-child { border-right: 0; }
+        html[data-window-mode="compact"] .feature-header { align-items: flex-end; flex-direction: row; }
+        html[data-window-mode="compact"] .feature-controls { grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(126px, .55fr)) 142px; }
+        html[data-window-mode="compact"] .feature-controls.cols-3 { grid-template-columns: minmax(220px, 1fr) minmax(180px, .7fr) 142px; }
+        html[data-window-mode="compact"] .feature-controls .run-button { grid-column: auto; }
+        html[data-window-mode="compact"] .metric-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        html[data-window-mode="compact"] .metric-grid.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        html[data-window-mode="compact"] .metric-grid .metric,
+        html[data-window-mode="compact"] .metric-grid.six .metric { border-right: 1px solid var(--line); border-bottom: 0; }
+        html[data-window-mode="compact"] .metric-grid .metric:last-child,
+        html[data-window-mode="compact"] .metric-grid.six .metric:last-child { border-right: 0; }
+        html[data-window-mode="compact"] .split-view { grid-template-columns: minmax(0, 1.45fr) minmax(280px, .55fr); }
+        html[data-window-mode="compact"] .environment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        html[data-window-mode="compact"] .site-selector { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        html[data-window-mode="compact"] .data-table { width: 100%; overflow-x: auto; }
+        html[data-window-mode="compact"] .data-row { min-width: 0; }
+        html[data-window-mode="compact"] .chart { height: 200px; }
+        html[data-window-mode="compact"] .drawer {
+            --window-edge: max(0px, calc((100% - 1120px) / 2));
+            right: var(--window-edge);
+            width: min(410px, calc(100vw - 182px));
+        }
+        html[data-window-mode="compact"] .drawer:not(.open) { transform: translateX(calc(102% + max(0px, calc((100vw - 1120px) / 2)))); }
+        html[data-window-mode="compact"] .drawer.open { transform: translateX(0); }
+
+        @media (max-width: 1140px) {
+            html[data-window-mode="compact"] .app { height: 100vh; margin: 0 auto; border-radius: 0; box-shadow: none; }
+            html[data-window-mode="compact"] .drawer { right: 0; }
+        }
+
+        @media (max-width: 960px) {
+            html[data-window-mode="compact"] .app { grid-template-columns: 168px minmax(0, 1fr); }
+            html[data-window-mode="compact"] .sidebar { padding-right: 9px; padding-left: 9px; }
+            html[data-window-mode="compact"] .toolbar,
+            html[data-window-mode="compact"] .module-tabs { padding-right: 12px; padding-left: 12px; }
+            html[data-window-mode="compact"] main { padding-right: 12px; padding-left: 12px; }
+            html[data-window-mode="compact"] .control-bar.integrated-controls { grid-template-columns: 1fr; }
+            html[data-window-mode="compact"] .control-bar.integrated-controls > label:first-child,
+            html[data-window-mode="compact"] .control-bar.integrated-controls .strategy-control,
+            html[data-window-mode="compact"] .control-bar.integrated-controls .run-button { grid-column: auto; }
+            html[data-window-mode="compact"] .diagnostic-stages { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            html[data-window-mode="compact"] .diagnostic-stage:nth-child(3) { border-right: 0; }
+            html[data-window-mode="compact"] .diagnostic-stage:nth-child(n + 4) { border-top: 1px solid var(--line); }
+            html[data-window-mode="compact"] .summary-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            html[data-window-mode="compact"] .summary-cell { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+            html[data-window-mode="compact"] .summary-cell:nth-child(2n) { border-right: 0; }
+            html[data-window-mode="compact"] .summary-cell:last-child { grid-column: 1 / -1; border-bottom: 0; }
+            html[data-window-mode="compact"] .risk-workspace { grid-template-columns: 1fr; }
+            html[data-window-mode="compact"] .lead-risk { border-right: 0; border-bottom: 1px solid var(--line); }
+            html[data-window-mode="compact"] .support-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            html[data-window-mode="compact"] .support-row:nth-child(2n) { border-right: 0; }
+            html[data-window-mode="compact"] .support-row:nth-last-child(-n + 4) { border-bottom: 1px solid var(--line); }
+            html[data-window-mode="compact"] .support-row:nth-last-child(-n + 2) { border-bottom: 0; }
+            html[data-window-mode="compact"] .actions { grid-template-columns: 1fr; }
+            html[data-window-mode="compact"] .action-row { border-right: 0; border-bottom: 1px solid var(--line); }
+            html[data-window-mode="compact"] .action-row:last-child { border-bottom: 0; }
+            html[data-window-mode="compact"] .feature-controls,
+            html[data-window-mode="compact"] .feature-controls.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            html[data-window-mode="compact"] .feature-controls .run-button { grid-column: 1 / -1; }
+            html[data-window-mode="compact"] .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            html[data-window-mode="compact"] .metric-grid.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            html[data-window-mode="compact"] .metric-grid .metric,
+            html[data-window-mode="compact"] .metric-grid.six .metric { border-bottom: 1px solid var(--line); }
+            html[data-window-mode="compact"] .metric-grid .metric:nth-child(2n),
+            html[data-window-mode="compact"] .metric-grid.six .metric:nth-child(3n) { border-right: 0; }
+            html[data-window-mode="compact"] .metric-grid .metric:nth-last-child(-n + 2),
+            html[data-window-mode="compact"] .metric-grid.six .metric:nth-last-child(-n + 3) { border-bottom: 0; }
+            html[data-window-mode="compact"] .split-view { grid-template-columns: 1fr; }
+            html[data-window-mode="compact"] .site-selector { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            html[data-window-mode="compact"] .data-row { min-width: 700px; }
+            html[data-window-mode="compact"] .drawer { width: min(390px, calc(100vw - 168px)); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; }
+            .drawer { transition: opacity 180ms ease; transform: none; opacity: 0; pointer-events: none; }
+            .drawer.open { opacity: 1; pointer-events: auto; }
+            .drawer-scrim, .toast, .info-tip::after { transition: opacity 150ms ease; transform: none; }
+        }
+        @media (prefers-reduced-transparency: reduce) {
+            .sidebar, .toolbar, .drawer, .toast { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+        }
+        @media (prefers-contrast: more) {
+            :root { --line: rgba(255, 255, 255, .28); --line-strong: rgba(255, 255, 255, .42); }
+            html[data-theme="light"] { --line: rgba(0, 0, 0, .28); --line-strong: rgba(0, 0, 0, .42); }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">AT</span><div><strong>ATNetool</strong><small>Network Assistant</small></div></div>
+        <div class="nav-label">工作区</div>
+        <nav aria-label="主要功能">
+            <button class="nav-item active" data-module-group="diagnosis" data-label="诊断中心" title="诊断中心" type="button"><span class="nav-glyph" aria-hidden="true">诊</span><strong>诊断中心</strong></button>
+            <button class="nav-item" data-module-group="monitoring" data-label="网络监测" title="网络监测" type="button"><span class="nav-glyph" aria-hidden="true">监</span><strong>网络监测</strong></button>
+            <button class="nav-item" data-module-group="governance" data-label="优化治理" title="优化治理" type="button"><span class="nav-glyph" aria-hidden="true">治</span><strong>优化治理</strong></button>
+            <button class="nav-item" data-module-group="records" data-label="历史报告" title="历史报告" type="button"><span class="nav-glyph" aria-hidden="true">历</span><strong>历史报告</strong></button>
+        </nav>
+        <div class="sidebar-status"><span class="status-light"></span><span>本机采集服务正常<br>数据仅保存在本地</span></div>
+    </aside>
+
+    <div class="content">
+        <header class="toolbar">
+            <div class="toolbar-title"><h1 id="page-title">诊断中心 · 综合总览</h1><p id="page-subtitle">一次采集本地网络、DNS、端口、服务链路与代理路径</p></div>
+            <div class="toolbar-actions">
+                <span class="last-run" id="last-run">上次检测 14:32</span>
+                <div class="window-mode-toggle" role="group" aria-label="窗口布局模式">
+                    <button class="active" data-window-mode="wide" type="button" aria-pressed="true">大窗口</button>
+                    <button data-window-mode="compact" type="button" aria-pressed="false">小窗口</button>
+                </div>
+                <button class="icon-button" id="theme-toggle" type="button" title="切换亮暗主题" aria-label="切换亮暗主题">☼</button>
+            </div>
+        </header>
+
+        <nav class="module-tabs" id="module-tabs" aria-label="模块视图"></nav>
+
+        <main>
+            <section class="module-view" id="integrated-view">
+            <section class="control-bar integrated-controls" aria-label="综合诊断参数">
+                <label>目标域名或 URL<input id="target-input" value="baidu.com" spellcheck="false" aria-label="目标域名或 URL"></label>
+                <div class="strategy-control">连接策略<div class="inline-segmented"><button class="active" data-proxy-mode="system" type="button">自动代理</button><button data-proxy-mode="direct" type="button">强制直连</button><button data-proxy-mode="manual" type="button">手动代理</button></div><input class="manual-proxy-input" id="manual-proxy-input" value="http://127.0.0.1:7890" aria-label="手动代理地址" hidden></div>
+                <button class="run-button" id="run-button" type="button">运行检测</button>
+                <div class="run-progress" id="run-progress" aria-hidden="true"></div>
+            </section>
+
+            <section class="diagnostic-stages" aria-label="综合诊断模块状态">
+                <article class="diagnostic-stage"><span>LOCAL</span><strong>本地网络</strong><p>网络基线检测完成</p></article>
+                <article class="diagnostic-stage"><span>DNS</span><strong>解析链路</strong><p>DNS 深度诊断完成</p></article>
+                <article class="diagnostic-stage"><span>PORT</span><strong>端口协议</strong><p>端口检测完成</p></article>
+                <article class="diagnostic-stage"><span>HTTP</span><strong>服务与路由</strong><p>检测完成</p></article>
+                <article class="diagnostic-stage"><span>PATH</span><strong>代理对照</strong><p>路径对照完成</p></article>
+            </section>
+
+            <header class="result-header">
+                <div><h2>诊断结果</h2><p>13 条分层结论，按影响程度排列</p></div>
+                <div class="result-status">发现 5 项需要关注</div>
+            </header>
+
+            <section class="summary-bar" aria-label="关键指标">
+                <div class="summary-cell"><span>总体判断</span><strong>连接可用，路径可优化</strong></div>
+                <div class="summary-cell"><span>本地网络</span><strong>IPv4 42 ms</strong></div>
+                <div class="summary-cell"><span>DNS</span><strong>4 / 5 可达</strong></div>
+                <div class="summary-cell"><span>HTTP</span><strong>306 ms</strong></div>
+                <div class="summary-cell"><span>更优路径</span><strong>直连 220 ms</strong></div>
+            </section>
+
+            <section class="data-surface overview-route" aria-label="本次诊断的网络地域链路">
+                <header class="data-surface-head">
+                    <div><strong>网络地域链路</strong><span>5 HOPS · 4 LOCATED</span></div>
+                    <div class="inline-segmented" role="group" aria-label="链路数据视图">
+                        <button class="active" data-trace-mode="map" type="button">地域链路</button>
+                        <button data-trace-mode="raw" type="button">原始跳点</button>
+                    </div>
+                </header>
+                <div class="map-surface" data-trace-panel="map">
+                    <svg viewBox="0 0 800 300" preserveAspectRatio="none" aria-label="网络地域链路">
+                        <path class="map-land" d="M45 82L118 42 196 64 236 124 188 164 98 151ZM278 46L354 27 422 50 448 104 405 139 315 123ZM476 77L565 36 676 55 748 102 713 167 624 184 544 148Z"/>
+                        <path class="map-route" d="M94 128 C188 42 242 161 329 91 S488 69 557 139 S676 91 724 122"/>
+                        <circle class="map-node" cx="94" cy="128" r="6"/>
+                        <circle class="map-node" cx="329" cy="91" r="6"/>
+                        <circle class="map-node" cx="557" cy="139" r="6"/>
+                        <circle class="map-node" cx="724" cy="122" r="6"/>
+                    </svg>
+                    <div class="map-labels">
+                        <span class="map-label" style="left:8%;top:48%">本机 · 42 ms</span>
+                        <span class="map-label" style="left:37%;top:22%">上海电信 · 18 ms</span>
+                        <span class="map-label" style="left:65%;top:52%">东京边缘 · 36 ms</span>
+                        <span class="map-label" style="right:4%;top:33%">目标 · 51 ms</span>
+                    </div>
+                </div>
+                <div class="data-table raw-hops" data-trace-panel="raw" hidden>
+                    <div class="data-row head"><span>HOP</span><span>地址</span><span>RTT</span><span>节点类型</span><span>状态</span></div>
+                    <div class="data-row"><strong>01</strong><span>192.168.1.1</span><span>1.2 ms</span><span>本地网关</span><span class="state">响应</span></div>
+                    <div class="data-row"><strong>02</strong><span>10.28.0.1</span><span>8.4 ms</span><span>运营商内网</span><span class="state">响应</span></div>
+                    <div class="data-row"><strong>03</strong><span>202.97.90.41</span><span>18.7 ms</span><span>上海骨干</span><span class="state">响应</span></div>
+                    <div class="data-row"><strong>04</strong><span>* * *</span><span>--</span><span>未知设备</span><span class="state muted">无响应</span></div>
+                    <div class="data-row"><strong>05</strong><span>104.21.72.18</span><span>51.3 ms</span><span>Cloudflare</span><span class="state">到达目标</span></div>
+                </div>
+            </section>
+
+            <div class="finding-toolbar">
+                <div><strong>分层结论</strong><span>点击任意结论查看完整证据</span></div>
+                <div class="segmented" role="tablist" aria-label="结论状态筛选">
+                    <button class="active" data-filter="all" role="tab" aria-selected="true" type="button">全部 13</button>
+                    <button data-filter="warning" role="tab" aria-selected="false" type="button">关注 5</button>
+                    <button data-filter="healthy" role="tab" aria-selected="false" type="button">正常 7</button>
+                    <button data-filter="info" role="tab" aria-selected="false" type="button">提示 1</button>
+                </div>
+            </div>
+
+            <div class="risk-workspace" id="risk-workspace">
+                <section class="lead-risk priority-finding" data-level="warning">
+                    <div class="lead-top"><span class="severity">关键瓶颈</span><button class="info-tip" type="button" aria-label="查看判定说明" data-tooltip="主结论由公网连通性、系统代理和路径对照三组证据共同判定。">i</button></div>
+                    <span class="code">EGRESS / PROXY</span>
+                    <h3>公网访问依赖本地代理</h3>
+                    <p>公网直连 TCP 验证未通过，系统连接策略指向 127.0.0.1:7890。代理路径可用，但当前响应慢于强制直连样本。</p>
+                    <div class="path-compare"><div><span>系统代理</span><strong>306 ms</strong></div><span class="path-arrow">→</span><div><span>强制直连</span><strong>220 ms</strong></div><span class="path-delta">-28%</span></div>
+                    <div class="lead-actions"><button class="secondary-button primary open-detail" data-finding="1" type="button">查看完整证据</button><button class="secondary-button" data-action="重新路径对照" type="button">重新路径对照</button></div>
+                </section>
+                <section class="risk-queue">
+                    <header class="group-head"><strong>其他需要关注</strong><span>4 FINDINGS</span></header>
+                    <div class="risk-list" id="risk-list"></div>
+                </section>
+            </div>
+
+            <section class="support-group" id="support-group">
+                <header class="group-head"><strong>验证通过与路径提示</strong><span>8 FINDINGS</span></header>
+                <div class="support-grid" id="support-grid"></div>
+            </section>
+
+            <section class="action-group">
+                <header class="group-head"><strong>建议治理顺序</strong><span>3 ACTIONS</span></header>
+                <div class="actions" id="actions"></div>
+            </section>
+            </section>
+            <section class="module-view feature-view" id="feature-view" hidden></section>
+        </main>
+    </div>
+</div>
+
+<div class="drawer-scrim" id="drawer-scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
+    <header id="drawer-handle"><strong id="drawer-title">完整诊断证据</strong><button class="drawer-close" id="drawer-close" type="button" aria-label="关闭证据详情">×</button></header>
+    <div class="drawer-content" id="drawer-content"></div>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+    const windowModeButtons = document.querySelectorAll('.window-mode-toggle [data-window-mode]');
+
+    function setWindowMode(mode, persist = true) {
+        const nextMode = mode === 'compact' ? 'compact' : 'wide';
+        document.documentElement.dataset.windowMode = nextMode;
+        windowModeButtons.forEach((button) => {
+            const active = button.dataset.windowMode === nextMode;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-pressed', String(active));
+        });
+        if (!persist) return;
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('window', nextMode);
+            window.history.replaceState({}, '', url);
+        } catch (_) {
+            // The prototype still switches modes if a browser blocks history updates for local files.
+        }
+    }
+
+    windowModeButtons.forEach((button) => button.addEventListener('click', () => setWindowMode(button.dataset.windowMode)));
+    setWindowMode(new URLSearchParams(window.location.search).get('window'), false);
+
+    const findings = [
+        { level: 'warning', layer: 'DNS', title: 'DNS 结果存在差异', detail: '3/4 个解析器返回结果，可能来自 CDN 调度或解析器策略差异。', evidence: '系统 DNS 与公共解析器返回地址集合存在部分差异。' },
+        { level: 'warning', layer: 'EGRESS', title: '公网访问依赖代理', detail: '公网直连 TCP 验证未通过，已发现本地监听端点。', evidence: 'IPv4 与 IPv6 均未通过公网直连验证；127.0.0.1:7890 正在监听。' },
+        { level: 'warning', layer: 'PROXY', title: '系统代理已配置', detail: '系统连接策略指向 http://127.0.0.1:7890。', evidence: 'HTTP_PROXY 与系统网络代理均指向本地端点，应用请求可能沿用该设置。' },
+        { level: 'warning', layer: 'DNS', title: '部分公共解析器不可达', detail: 'Cloudflare DNS 未响应，可能受到网络策略限制。', evidence: 'Google 与本地 DNS 正常；1.1.1.1 的 UDP 查询在超时阈值内无响应。' },
+        { level: 'warning', layer: 'PATHS', title: '强制直连响应更快', detail: '中位总耗时降低约 28%，可用于连接策略治理。', evidence: '系统代理中位耗时 306 ms；强制直连样本中位耗时 220 ms。' },
+        { level: 'healthy', layer: 'LOCAL', title: '活动接口正常', detail: '默认路由已绑定到 eno1。', evidence: 'eno1 已启用并持有默认 IPv4 路由，本地网关响应 42 ms。' },
+        { level: 'healthy', layer: 'DNS', title: '系统 DNS 可用', detail: '共 4/5 个解析来源返回响应。', evidence: '系统 DNS 在 18 ms 内返回有效 A/AAAA 记录。' },
+        { level: 'healthy', layer: 'DNS', title: 'DNS 传输通道正常', detail: '公共 UDP DNS 与 DoH 均可访问。', evidence: '可用解析器的 UDP 53 与 HTTPS 443 查询均成功完成。' },
+        { level: 'healthy', layer: 'DNS', title: '系统解析与公共结果存在交集', detail: '未发现明确的本地解析重写证据。', evidence: '系统结果与公共解析结果至少共享一个有效地址。' },
+        { level: 'healthy', layer: 'DNS', title: '公共解析结果一致', detail: '可用公共解析器返回相同地址集合。', evidence: '除不可达解析器外，其余公共源返回的地址集合一致。' },
+        { level: 'healthy', layer: 'PORTS', title: '所选端口全部可达', detail: '2 个端口完成 TCP 建连。', evidence: '目标 80 与 443 端口均在超时阈值内完成握手。' },
+        { level: 'healthy', layer: 'HTTP', title: 'HTTP/TLS 请求完成', detail: 'HTTP 200，TTFB 16 ms，总耗时 306 ms。', evidence: 'TLS 证书有效，HTTP 状态码 200，CF-Ray 已成功提取。' },
+        { level: 'info', layer: 'ROUTE', title: '路由未显示完整终点', detail: '部分设备不响应 ICMP，不单独判定为中断。', evidence: '追踪在中间跃点停止响应，但目标 HTTP 请求仍然成功。' }
+    ];
+    const actions = [
+        { module: 'BASELINE', title: '分别验证系统代理与强制直连', detail: '确认性能差异来自代理端点、隧道路由还是目标服务。' },
+        { module: 'DNS', title: '运行 DNS 深度诊断', detail: '比较系统 DNS、公共 UDP DNS 与 DoH 的结果和耗时。' },
+        { module: 'PATHS', title: '采用路径对照结论', detail: '以 28% 的中位耗时差异作为后续连接策略依据。' }
+    ];
+
+    const escapeHTML = (value) => String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
+    const statusDot = (level) => `<i class="dot ${level === 'healthy' ? 'healthy' : level === 'info' ? 'info' : ''}"></i>`;
+    const primaryRisk = findings[1];
+    const warnings = findings.filter((item) => item.level === 'warning' && item !== primaryRisk);
+    const supporting = findings.filter((item) => item.level !== 'warning');
+
+    document.querySelector('#risk-list').innerHTML = warnings.map((item) => `
+        <button class="finding-row priority-finding open-detail" data-level="warning" data-finding="${findings.indexOf(item)}" type="button" title="${escapeHTML(item.detail)}">${statusDot(item.level)}<span><span class="code">${item.layer}</span><strong class="item-title">${escapeHTML(item.title)}</strong><span class="detail">${escapeHTML(item.detail)}</span></span><span class="chevron">›</span></button>`).join('');
+    document.querySelector('#support-grid').innerHTML = supporting.map((item) => `
+        <button class="support-row priority-finding open-detail" data-level="${item.level}" data-finding="${findings.indexOf(item)}" type="button" title="${escapeHTML(item.detail)}">${statusDot(item.level)}<span><span class="code">${item.layer}</span><strong class="item-title">${escapeHTML(item.title)}</strong></span></button>`).join('');
+    document.querySelector('#actions').innerHTML = actions.map((item, index) => `
+        <button class="action-row" data-action="${escapeHTML(item.title)}" type="button" title="${escapeHTML(item.detail)}"><span class="code">0${index + 1}</span><strong class="item-title">${escapeHTML(item.title)}</strong><span class="chevron">›</span></button>`).join('');
+
+    const toast = document.querySelector('#toast');
+    let toastTimer;
+    function showToast(message) {
+        clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add('show');
+        toastTimer = window.setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    const moduleGroups = {
+        diagnosis: ['integrated', 'diagnosis', 'dns', 'ports', 'baseline'],
+        monitoring: ['stability', 'patrol'],
+        governance: ['paths', 'cdn'],
+        records: ['history', 'trends']
+    };
+    const viewMeta = {
+        integrated: ['综合总览', '诊断中心 · 综合总览', '一次采集本地网络、DNS、端口、服务链路与代理路径'],
+        diagnosis: ['链路证据', '诊断中心 · 链路证据', 'HTTP、TLS、Cloudflare 与 Traceroute'],
+        dns: ['DNS 分析', '诊断中心 · DNS 分析', '系统 DNS、公共 UDP 与 DoH 解析证据对照'],
+        ports: ['端口协议', '诊断中心 · 端口协议', '指定端口的 TCP、TLS 与应用协议验证'],
+        baseline: ['本地环境', '诊断中心 · 本地环境', '接口、默认路由、DNS、出口与代理环境'],
+        stability: ['单目标监测', '网络监测 · 单目标', '持续观察延迟、失败率、抖动和路径变化'],
+        patrol: ['多站点巡检', '网络监测 · 多站点', '批量验证常用网站的可用性与访问质量'],
+        paths: ['连接策略', '优化治理 · 连接策略', '系统代理、强制直连与手动代理 A/B 验证'],
+        cdn: ['CDN 节点', '优化治理 · CDN 节点', 'Cloudflare 候选 IP 性能排序与治理验证'],
+        history: ['检测记录', '历史报告 · 检测记录', '本地保存的诊断结果与治理前后对比'],
+        trends: ['趋势分析', '历史报告 · 趋势分析', '观察同一目标的长期性能变化与治理效果']
+    };
+
+    const header = (title, copy, badge = '数据已更新', warning = false) => `<header class="feature-header"><div><h2>${title}</h2><p>${copy}</p></div><span class="feature-badge ${warning ? 'warning' : ''}">${badge}</span></header>`;
+    const chartSVG = (trend = false) => `<svg class="chart" viewBox="0 0 720 220" preserveAspectRatio="none" aria-label="${trend ? '历史性能趋势图' : '网络延迟序列图'}"><g class="chart-grid"><path d="M0 44H720M0 88H720M0 132H720M0 176H720"/><path d="M120 0V220M240 0V220M360 0V220M480 0V220M600 0V220"/></g><path class="chart-threshold" d="M0 72H720"/><path class="chart-area" d="M0 174 L36 165 L72 170 L108 145 L144 151 L180 139 L216 150 L252 130 L288 142 L324 117 L360 128 L396 94 L432 112 L468 104 L504 76 L540 91 L576 66 L612 82 L648 54 L684 71 L720 49 L720 220 L0 220 Z"/><path class="chart-line" d="M0 174 L36 165 L72 170 L108 145 L144 151 L180 139 L216 150 L252 130 L288 142 L324 117 L360 128 L396 94 L432 112 L468 104 L504 76 L540 91 L576 66 L612 82 L648 54 L684 71 L720 49"/></svg>`;
+    const routeMap = `<div class="map-surface" data-trace-panel="map"><svg viewBox="0 0 800 300" preserveAspectRatio="none" aria-label="网络地域链路"><path class="map-land" d="M45 82L118 42 196 64 236 124 188 164 98 151ZM278 46L354 27 422 50 448 104 405 139 315 123ZM476 77L565 36 676 55 748 102 713 167 624 184 544 148Z"/><path class="map-route" d="M94 128 C188 42 242 161 329 91 S488 69 557 139 S676 91 724 122"/><circle class="map-node" cx="94" cy="128" r="6"/><circle class="map-node" cx="329" cy="91" r="6"/><circle class="map-node" cx="557" cy="139" r="6"/><circle class="map-node" cx="724" cy="122" r="6"/></svg><div class="map-labels"><span class="map-label" style="left:8%;top:48%">本机 · 42 ms</span><span class="map-label" style="left:37%;top:22%">上海电信 · 18 ms</span><span class="map-label" style="left:65%;top:52%">东京边缘 · 36 ms</span><span class="map-label" style="right:4%;top:33%">目标 · 51 ms</span></div></div>`;
+    const rawHops = `<div class="data-table raw-hops" data-trace-panel="raw" hidden><div class="data-row head"><span>HOP</span><span>地址</span><span>RTT</span><span>节点类型</span><span>状态</span></div><div class="data-row"><strong>01</strong><span>192.168.1.1</span><span>1.2 ms</span><span>本地网关</span><span class="state">响应</span></div><div class="data-row"><strong>02</strong><span>10.28.0.1</span><span>8.4 ms</span><span>运营商内网</span><span class="state">响应</span></div><div class="data-row"><strong>03</strong><span>202.97.90.41</span><span>18.7 ms</span><span>上海骨干</span><span class="state">响应</span></div><div class="data-row"><strong>04</strong><span>* * *</span><span>--</span><span>未知设备</span><span class="state muted">无响应</span></div><div class="data-row"><strong>05</strong><span>104.21.72.18</span><span>51.3 ms</span><span>Cloudflare</span><span class="state">到达目标</span></div></div>`;
+
+    const viewTemplates = {
+        diagnosis: () => `${header('链路证据', '拆解一次 HTTP 请求，并同步呈现端到端路由证据', 'HTTP 200 · CF NRT', false)}<section class="feature-controls cols-3"><label>目标域名或 URL<input value="https://baidu.com"></label><div class="field">连接策略<div class="inline-segmented"><button class="active" type="button">自动</button><button type="button">直连</button><button type="button">代理</button></div></div><button class="run-button" data-simulate="链路诊断" type="button">重新诊断</button></section><section class="metric-grid six"><div class="metric"><span>DNS</span><strong>18 ms</strong></div><div class="metric"><span>TCP</span><strong>42 ms</strong></div><div class="metric"><span>TLS</span><strong>61 ms</strong></div><div class="metric"><span>TTFB</span><strong>16 ms</strong></div><div class="metric"><span>TOTAL</span><strong>306 ms</strong></div><div class="metric"><span>CF-RAY</span><strong>NRT</strong></div></section><section class="data-surface"><header class="data-surface-head"><div><strong>网络地域链路</strong><span>5 HOPS · 4 LOCATED</span></div><div class="inline-segmented"><button class="active" data-trace-mode="map" type="button">地域链路</button><button data-trace-mode="raw" type="button">原始跳点</button></div></header>${routeMap}${rawHops}</section>`,
+        dns: () => `${header('DNS 深度诊断', '对照系统解析、公共 UDP DNS 与 DoH', '4 / 5 可达', true)}<section class="feature-controls"><label>诊断域名<input value="baidu.com"></label><label>记录类型<select><option>A + AAAA</option><option>A</option><option>AAAA</option></select></label><label>超时时间<select><option>3 秒</option><option>5 秒</option></select></label><button class="run-button" data-simulate="DNS 诊断" type="button">运行 DNS 诊断</button></section><section class="metric-grid"><div class="metric"><span>系统解析</span><strong class="good">可用</strong></div><div class="metric"><span>UDP / 53</span><strong>3 / 4</strong></div><div class="metric"><span>DoH / HTTPS</span><strong class="good">2 / 2</strong></div><div class="metric"><span>结果一致性</span><strong class="warn">存在差异</strong></div></section><section class="data-surface"><header class="data-surface-head"><div><strong>解析器证据矩阵</strong><span>5 RESOLVERS</span></div><button class="small-button" data-action="复制 DNS 报告" type="button">复制报告</button></header><div class="data-table" style="--columns:1.2fr .7fr 1.6fr 1.2fr .6fr .7fr"><div class="data-row head"><span>解析器</span><span>通道</span><span>A 记录</span><span>AAAA / CNAME</span><span>耗时</span><span>状态</span></div><div class="data-row"><strong>系统 DNS</strong><span>LOCAL</span><span>110.242.68.66</span><span>www.a.shifen.com</span><span>18 ms</span><span class="state">正常</span></div><div class="data-row"><strong>AliDNS</strong><span>UDP</span><span>110.242.68.66</span><span>一致</span><span>31 ms</span><span class="state">正常</span></div><div class="data-row"><strong>Google</strong><span>UDP</span><span>110.242.68.3</span><span>调度差异</span><span>47 ms</span><span class="state warn">差异</span></div><div class="data-row"><strong>Cloudflare</strong><span>UDP</span><span>--</span><span>--</span><span>3000 ms</span><span class="state warn">超时</span></div><div class="data-row"><strong>Cloudflare DoH</strong><span>HTTPS</span><span>110.242.68.66</span><span>一致</span><span>83 ms</span><span class="state">正常</span></div></div></section>`,
+        ports: () => `${header('端口与协议可达性', '验证明确选择的端口，不执行网段扫描', '2 / 4 开放', true)}<section class="feature-controls cols-3"><label>目标主机或 URL<input value="baidu.com"></label><label>端口列表<input value="22, 80, 443, 8443"></label><button class="run-button" data-simulate="端口检测" type="button">检测端口</button></section><section class="data-surface"><div class="protocol-presets"><label class="port-preset"><input type="checkbox">22 SSH</label><label class="port-preset"><input type="checkbox">53 DNS</label><label class="port-preset"><input type="checkbox" checked>80 HTTP</label><label class="port-preset"><input type="checkbox" checked>443 HTTPS</label><label class="port-preset"><input type="checkbox">3306 MySQL</label><label class="port-preset"><input type="checkbox">6379 Redis</label><label class="port-preset"><input type="checkbox">8443 HTTPS</label></div><div class="data-table" style="--columns:.5fr .8fr 1.2fr .7fr .8fr .7fr"><div class="data-row head"><span>端口</span><span>服务</span><span>连接地址</span><span>耗时</span><span>协议</span><span>状态</span></div><div class="data-row"><strong>80</strong><span>HTTP</span><span>110.242.68.66</span><span>31 ms</span><span>HTTP/1.1</span><span class="state">开放</span></div><div class="data-row"><strong>443</strong><span>HTTPS</span><span>110.242.68.66</span><span>42 ms</span><span>TLS 1.3 · h2</span><span class="state">开放</span></div><div class="data-row"><strong>22</strong><span>SSH</span><span>110.242.68.66</span><span>12 ms</span><span>TCP</span><span class="state warn">拒绝</span></div><div class="data-row"><strong>8443</strong><span>HTTPS ALT</span><span>110.242.68.66</span><span>3000 ms</span><span>--</span><span class="state muted">超时</span></div></div></section>`,
+        baseline: () => `${header('本地网络环境', '确认接口、默认路由、DNS、出口与代理配置', '采集于 14:32', false)}<section class="metric-grid"><div class="metric"><span>活动接口</span><strong>eno1</strong></div><div class="metric"><span>默认网关</span><strong>192.168.1.1</strong></div><div class="metric"><span>公网 IPv4</span><strong>116.22.18.9</strong></div><div class="metric"><span>代理监听</span><strong class="warn">127.0.0.1:7890</strong></div></section><div class="environment-grid"><article class="environment-card"><span>ACTIVE INTERFACE</span><h3>以太网连接正常</h3><dl><dt>接口</dt><dd>eno1 · UP</dd><dt>本地地址</dt><dd>192.168.1.108 / 24</dd><dt>网关延迟</dt><dd>42 ms</dd><dt>MTU</dt><dd>1500</dd></dl></article><article class="environment-card"><span>PROXY ENVIRONMENT</span><h3>检测到系统代理</h3><dl><dt>HTTP</dt><dd>127.0.0.1:7890</dd><dt>HTTPS</dt><dd>127.0.0.1:7890</dd><dt>SOCKS</dt><dd>未配置</dd><dt>监听状态</dt><dd>正在监听</dd></dl></article><article class="environment-card"><span>DNS CONFIGURATION</span><h3>系统 DNS 可用</h3><dl><dt>服务器</dt><dd>192.168.1.1</dd><dt>模式</dt><dd>本地网关转发</dd><dt>搜索域</dt><dd>local</dd><dt>解析耗时</dt><dd>18 ms</dd></dl></article><article class="environment-card"><span>EGRESS VALIDATION</span><h3>公网访问依赖代理</h3><dl><dt>IPv4 直连</dt><dd>验证失败</dd><dt>IPv6 直连</dt><dd>无可用路由</dd><dt>代理出口</dt><dd>访问正常</dd><dt>建议</dt><dd>运行路径对照</dd></dl></article></div><button class="run-button" data-simulate="环境采集" type="button">重新采集本地环境</button>`,
+        stability: () => `${header('持续网络监控', '小流量采样延迟、失败率、抖动和路径变化', '监控中 · 24 / 30', false)}<section class="feature-controls"><label>目标域名或 URL<input value="https://baidu.com"></label><label>测试时长<select><option>30 秒</option><option>2 分钟</option><option>5 分钟</option></select></label><label>采样间隔<select><option>1 秒</option><option>2 秒</option></select></label><button class="run-button" data-simulate="持续监控" type="button">停止并保存</button></section><section class="metric-grid six"><div class="metric"><span>可用率</span><strong class="good">100%</strong></div><div class="metric"><span>P50</span><strong>228 ms</strong></div><div class="metric"><span>P95</span><strong>418 ms</strong></div><div class="metric"><span>JITTER</span><strong>37 ms</strong></div><div class="metric"><span>超限</span><strong class="warn">2</strong></div><div class="metric"><span>路径变化</span><strong>1</strong></div></section><div class="split-view"><section class="chart-surface"><div class="chart-title"><strong>实时延迟</strong><span>500 MS THRESHOLD</span></div>${chartSVG()}</section><section class="data-surface"><header class="data-surface-head"><div><strong>异常与路径变化</strong><span>3 EVENTS</span></div></header><div class="event-list"><article class="event-row"><span>14:32:08</span><div><strong>延迟超过阈值</strong><small>623 ms · 104.21.72.18</small></div><span class="state warn">延迟</span></article><article class="event-row"><span>14:32:14</span><div><strong>出口地址变化</strong><small>代理节点切换至 104.21.73.18</small></div><span class="state">路径</span></article><article class="event-row"><span>14:32:19</span><div><strong>延迟恢复</strong><small>回落至 241 ms</small></div><span class="state">恢复</span></article></div></section></div>`,
+        patrol: () => `${header('多站点巡检', '统一检查常用网站的可用性和访问质量', '6 / 8 正常', true)}<section class="data-surface"><header class="data-surface-head"><div><strong>巡检目标</strong><span>8 SITES · 4 CONCURRENT</span></div><button class="small-button" data-simulate="站点巡检" type="button">重新巡检</button></header><div class="site-selector"><label><input type="checkbox" checked>百度</label><label><input type="checkbox" checked>GitHub</label><label><input type="checkbox" checked>Cloudflare</label><label><input type="checkbox" checked>Google</label><label><input type="checkbox" checked>哔哩哔哩</label><label><input type="checkbox" checked>微信公众平台</label><label><input type="checkbox" checked>阿里云</label><label><input type="checkbox" checked>自定义 API</label></div></section><section class="data-surface"><div class="data-table" style="--columns:1fr 1.4fr .7fr .7fr .7fr .8fr"><div class="data-row head"><span>站点</span><span>域名</span><span>状态</span><span>TTFB</span><span>总耗时</span><span>访问质量</span></div><div class="data-row"><strong>百度</strong><span>baidu.com</span><span>200</span><span>16 ms</span><span>220 ms</span><span class="state">良好</span></div><div class="data-row"><strong>GitHub</strong><span>github.com</span><span>200</span><span>328 ms</span><span>831 ms</span><span class="state warn">较慢</span></div><div class="data-row"><strong>Cloudflare</strong><span>cloudflare.com</span><span>200</span><span>93 ms</span><span>301 ms</span><span class="state">良好</span></div><div class="data-row"><strong>Google</strong><span>google.com</span><span>--</span><span>--</span><span>3000 ms</span><span class="state warn">超时</span></div><div class="data-row"><strong>哔哩哔哩</strong><span>bilibili.com</span><span>200</span><span>49 ms</span><span>187 ms</span><span class="state">良好</span></div><div class="data-row"><strong>阿里云</strong><span>aliyun.com</span><span>200</span><span>37 ms</span><span>166 ms</span><span class="state">良好</span></div></div></section>`,
+        paths: () => `${header('连接策略对照', '用相同样本比较系统代理、强制直连与手动代理', '直连快 28%', false)}<section class="feature-controls"><label>目标域名或 URL<input value="https://baidu.com"></label><label>手动代理端点<input value="http://127.0.0.1:7890"></label><label>每条路径样本<select><option>3 次</option><option>5 次</option></select></label><button class="run-button" data-simulate="路径对照" type="button">运行路径对照</button></section><section class="metric-grid"><div class="metric"><span>推荐路径</span><strong class="good">强制直连</strong></div><div class="metric"><span>中位耗时</span><strong>220 ms</strong></div><div class="metric"><span>相对改善</span><strong class="good">28%</strong></div><div class="metric"><span>稳定性</span><strong>3 / 3</strong></div></section><section class="data-surface"><header class="data-surface-head"><div><strong>路径 A/B 结果</strong><span>9 SAMPLES</span></div><button class="small-button" data-action="复制路径报告" type="button">复制报告</button></header><div class="data-table" style="--columns:1.2fr .9fr .9fr .9fr .9fr .8fr"><div class="data-row head"><span>连接策略</span><span>成功率</span><span>DNS</span><span>TTFB</span><span>总耗时中位</span><span>结论</span></div><div class="data-row"><strong>系统代理</strong><span>3 / 3</span><span>代理解析</span><span>102 ms</span><span>306 ms</span><span class="state warn">可优化</span></div><div class="data-row candidate-best"><strong>强制直连</strong><span>3 / 3</span><span>18 ms</span><span>16 ms</span><span>220 ms</span><span class="state">推荐</span></div><div class="data-row"><strong>手动代理</strong><span>3 / 3</span><span>代理解析</span><span>118 ms</span><span>334 ms</span><span class="state warn">较慢</span></div></div></section>`,
+        cdn: () => `${header('Cloudflare CDN 节点优选', '候选 IP 仅用于对照验证，不自动修改 DNS 或 Hosts', '发现 2 个更优节点', false)}<section class="feature-controls"><label>Cloudflare 域名<input value="www.cloudflare.com"></label><label>候选来源<select><option>DNS + 内置地址段</option><option>仅手动候选</option></select></label><label>每节点样本<select><option>3 次</option><option>5 次</option></select></label><button class="run-button" data-simulate="CDN 节点测试" type="button">开始优选</button></section><section class="data-surface"><header class="data-surface-head"><div><strong>候选节点排序</strong><span>6 CANDIDATES</span></div><button class="small-button" data-action="复制 CDN 报告" type="button">复制报告</button></header><div class="data-table" style="--columns:.5fr 1.2fr .8fr .8fr .8fr .8fr .8fr"><div class="data-row head"><span>排名</span><span>候选 IP</span><span>地区</span><span>可用率</span><span>TTFB</span><span>总耗时</span><span>提升</span></div><div class="data-row candidate-best"><strong>01</strong><span>104.21.72.18</span><span>NRT</span><span>100%</span><span>42 ms</span><span>176 ms</span><span class="state">42%</span></div><div class="data-row candidate-best"><strong>02</strong><span>172.67.18.91</span><span>HKG</span><span>100%</span><span>51 ms</span><span>194 ms</span><span class="state">36%</span></div><div class="data-row"><strong>03</strong><span>104.16.132.229</span><span>SIN</span><span>100%</span><span>88 ms</span><span>267 ms</span><span class="state">12%</span></div><div class="data-row"><strong>04</strong><span>当前 DNS</span><span>LAX</span><span>100%</span><span>121 ms</span><span>303 ms</span><span class="state muted">基线</span></div></div></section><section class="data-surface"><header class="data-surface-head"><div><strong>治理验证步骤</strong><span>NO AUTO CHANGE</span></div></header><div class="comparison-strip"><div><span>01 · 灰度</span><strong>单台设备临时验证</strong></div><div><span>02 · 业务</span><strong>登录 / 静态资源 / API</strong></div><div><span>03 · 回退</span><strong>保留原 DNS 基线</strong></div></div></section>`,
+        history: () => `${header('本地检测记录', '诊断、监控和治理结果只保存在当前设备', '28 条记录', false)}<section class="feature-controls"><label>搜索目标<input value="baidu.com"></label><label>记录类型<select><option>全部类型</option><option>综合诊断</option><option>单目标监测</option><option>路径对照</option></select></label><label>时间范围<select><option>最近 30 天</option><option>最近 7 天</option></select></label><button class="run-button" data-action="导出本地记录" type="button">导出记录</button></section><section class="data-surface"><header class="data-surface-head history-toolbar"><div><strong>检测记录</strong><span id="history-selection">选择 2 条记录进行对比</span></div><div class="history-actions"><button class="small-button" id="compare-history" disabled type="button">对比所选</button><button class="small-button" data-action="清理历史记录" type="button">清理</button></div></header><div class="data-table" style="--columns:42px 1.2fr 1fr .8fr .8fr 1fr"><div class="data-row head"><span></span><span>检测时间</span><span>类型</span><span>状态</span><span>总耗时</span><span>关键结论</span></div><div class="data-row"><label class="history-check"><input data-history-check type="checkbox"></label><strong>今天 14:32</strong><span>综合诊断</span><span class="state warn">需关注</span><span>306 ms</span><span>公网依赖代理</span></div><div class="data-row"><label class="history-check"><input data-history-check type="checkbox"></label><strong>今天 10:18</strong><span>路径对照</span><span class="state">完成</span><span>220 ms</span><span>直连快 28%</span></div><div class="data-row"><label class="history-check"><input data-history-check type="checkbox"></label><strong>昨天 18:44</strong><span>单目标监测</span><span class="state">正常</span><span>241 ms</span><span>可用率 100%</span></div><div class="data-row"><label class="history-check"><input data-history-check type="checkbox"></label><strong>10 月 20 日</strong><span>DNS 分析</span><span class="state warn">差异</span><span>83 ms</span><span>1 个解析器超时</span></div></div><div class="comparison-strip" id="history-comparison" hidden><div><span>总耗时</span><strong>306 → 220 ms</strong></div><div><span>改善幅度</span><strong class="good">-28%</strong></div><div><span>结论变化</span><strong>代理 → 直连</strong></div></div></section>`,
+        trends: () => `${header('网络质量趋势', '按目标和指标观察长期变化与治理效果', '14 天 · 18 次检测', false)}<section class="feature-controls"><label>目标序列<select><option>baidu.com</option><option>github.com</option><option>cloudflare.com</option></select></label><label>趋势指标<select><option>总耗时</option><option>TTFB</option><option>可用率</option><option>抖动</option></select></label><label>时间范围<select><option>最近 14 天</option><option>最近 30 天</option></select></label><button class="run-button" data-action="导出趋势报告" type="button">导出趋势</button></section><section class="metric-grid"><div class="metric"><span>当前中位</span><strong>220 ms</strong></div><div class="metric"><span>周期变化</span><strong class="good">-24%</strong></div><div class="metric"><span>最佳记录</span><strong>176 ms</strong></div><div class="metric"><span>可用率</span><strong class="good">99.8%</strong></div></section><div class="split-view"><section class="chart-surface"><div class="chart-title"><strong>总耗时趋势</strong><span>OCT 09 — OCT 22</span></div>${chartSVG(true)}</section><section class="data-surface"><header class="data-surface-head"><div><strong>关键变化</strong><span>3 EVENTS</span></div></header><div class="event-list"><article class="event-row"><span>10-12</span><div><strong>代理升级后延迟下降</strong><small>P50 从 341 ms 降至 298 ms</small></div><span class="state">改善</span></article><article class="event-row"><span>10-18</span><div><strong>DNS 调度区域变化</strong><small>HKG → NRT</small></div><span class="state">路径</span></article><article class="event-row"><span>10-21</span><div><strong>启用强制直连</strong><small>总耗时降低 28%</small></div><span class="state">治理</span></article></div></section></div>`
+    };
+
+    const moduleTabs = document.querySelector('#module-tabs');
+    const integratedView = document.querySelector('#integrated-view');
+    const featureView = document.querySelector('#feature-view');
+    const pageTitle = document.querySelector('#page-title');
+    const pageSubtitle = document.querySelector('#page-subtitle');
+    let activeGroup = 'diagnosis';
+    let activeView = 'integrated';
+
+    function renderModuleTabs(group) {
+        moduleTabs.innerHTML = moduleGroups[group].map((id) => `<button class="module-tab ${id === activeView ? 'active' : ''}" data-view="${id}" type="button" role="tab" aria-selected="${id === activeView}">${viewMeta[id][0]}</button>`).join('');
+    }
+    function showView(id) {
+        activeView = id;
+        const meta = viewMeta[id];
+        pageTitle.textContent = meta[1];
+        pageSubtitle.textContent = meta[2];
+        integratedView.hidden = id !== 'integrated';
+        featureView.hidden = id === 'integrated';
+        if (id !== 'integrated') featureView.innerHTML = viewTemplates[id]();
+        toast.classList.remove('show');
+        renderModuleTabs(activeGroup);
+    }
+    function showGroup(group) {
+        activeGroup = group;
+        document.querySelectorAll('[data-module-group]').forEach((item) => {
+            const active = item.dataset.moduleGroup === group;
+            item.classList.toggle('active', active);
+            item.setAttribute('aria-selected', String(active));
+        });
+        showView(moduleGroups[group][0]);
+    }
+    moduleTabs.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-view]');
+        if (button) showView(button.dataset.view);
+    });
+    document.querySelectorAll('[data-module-group]').forEach((button) => button.addEventListener('click', () => showGroup(button.dataset.moduleGroup)));
+    renderModuleTabs(activeGroup);
+
+    document.addEventListener('click', (event) => {
+        const inlineOption = event.target.closest('.inline-segmented button');
+        if (inlineOption) inlineOption.closest('.inline-segmented').querySelectorAll('button').forEach((item) => item.classList.toggle('active', item === inlineOption));
+        const proxyMode = event.target.closest('[data-proxy-mode]');
+        if (proxyMode) document.querySelector('#manual-proxy-input').hidden = proxyMode.dataset.proxyMode !== 'manual';
+        const action = event.target.closest('[data-action]');
+        if (action) showToast(`已执行：${action.dataset.action}`);
+        const simulator = event.target.closest('[data-simulate]');
+        if (simulator && !simulator.disabled) {
+            const label = simulator.textContent;
+            simulator.disabled = true;
+            simulator.textContent = '检测中…';
+            window.setTimeout(() => { simulator.disabled = false; simulator.textContent = label; showToast(`${simulator.dataset.simulate}已更新`); }, 900);
+        }
+        const traceMode = event.target.closest('[data-trace-mode]');
+        if (traceMode) {
+            const traceSurface = traceMode.closest('.data-surface');
+            traceSurface.querySelector('[data-trace-panel="map"]').hidden = traceMode.dataset.traceMode !== 'map';
+            traceSurface.querySelector('[data-trace-panel="raw"]').hidden = traceMode.dataset.traceMode !== 'raw';
+            traceSurface.querySelector('.data-surface-head strong').textContent = traceMode.dataset.traceMode === 'map' ? '网络地域链路' : '原始跳点';
+        }
+        if (event.target.closest('#compare-history')) {
+            document.querySelector('#history-comparison').hidden = false;
+            showToast('已生成两次检测的对比结果');
+        }
+    });
+    featureView.addEventListener('change', (event) => {
+        if (!event.target.matches('[data-history-check]')) return;
+        const checked = featureView.querySelectorAll('[data-history-check]:checked').length;
+        const compare = document.querySelector('#compare-history');
+        document.querySelector('#history-selection').textContent = checked ? `已选择 ${checked} / 2` : '选择 2 条记录进行对比';
+        compare.disabled = checked !== 2;
+    });
+
+    document.querySelector('#theme-toggle').addEventListener('click', () => {
+        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
+        document.querySelector('#theme-toggle').textContent = next === 'dark' ? '☼' : '◐';
+    });
+
+    const runButton = document.querySelector('#run-button');
+    const runProgress = document.querySelector('#run-progress');
+    runButton.addEventListener('click', () => {
+        if (runButton.disabled) return;
+        runButton.disabled = true;
+        runButton.textContent = '正在检测…';
+        runProgress.style.setProperty('--progress', '0%');
+        requestAnimationFrame(() => requestAnimationFrame(() => runProgress.style.setProperty('--progress', '100%')));
+        window.setTimeout(() => {
+            runButton.disabled = false;
+            runButton.textContent = '运行检测';
+            runProgress.style.setProperty('--progress', '0%');
+            document.querySelector('#last-run').textContent = `刚刚检测 · ${document.querySelector('#target-input').value.trim() || '未命名目标'}`;
+            showToast('检测完成，13 条结论已更新');
+        }, 1700);
+    });
+
+    document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => {
+        const filter = button.dataset.filter;
+        document.querySelectorAll('[data-filter]').forEach((item) => {
+            const active = item === button;
+            item.classList.toggle('active', active);
+            item.setAttribute('aria-selected', String(active));
+        });
+        document.querySelector('#risk-workspace').hidden = filter === 'healthy' || filter === 'info';
+        document.querySelector('#support-group').hidden = filter === 'warning';
+        document.querySelectorAll('#support-grid .priority-finding').forEach((item) => {
+            item.hidden = filter !== 'all' && filter !== 'warning' && item.dataset.level !== filter;
+        });
+    }));
+
+    const drawer = document.querySelector('#drawer');
+    const drawerScrim = document.querySelector('#drawer-scrim');
+    const drawerClose = document.querySelector('#drawer-close');
+    const drawerHandle = document.querySelector('#drawer-handle');
+    let drawerTrigger = null;
+    function openDrawer(button) {
+        const item = findings[Number(button.dataset.finding)];
+        document.querySelector('#drawer-content').innerHTML = `<span class="code">${item.layer} · ${item.level.toUpperCase()}</span><h3>${escapeHTML(item.title)}</h3><p>${escapeHTML(item.detail)}</p><div class="evidence-block"><span>检测证据</span><strong>${escapeHTML(item.evidence)}</strong></div>`;
+        drawerTrigger = button;
+        drawer.classList.add('open');
+        drawerScrim.classList.add('open');
+        drawer.setAttribute('aria-hidden', 'false');
+        drawerClose.focus();
+    }
+    function closeDrawer() {
+        drawer.classList.remove('open', 'dragging');
+        drawer.style.transform = '';
+        drawerScrim.style.opacity = '';
+        drawerScrim.classList.remove('open');
+        drawer.setAttribute('aria-hidden', 'true');
+        drawerTrigger?.focus();
+    }
+    document.querySelectorAll('.open-detail').forEach((button) => button.addEventListener('click', () => openDrawer(button)));
+    drawerClose.addEventListener('click', closeDrawer);
+    drawerScrim.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && drawer.classList.contains('open')) closeDrawer(); });
+
+    let drag = null;
+    drawerHandle.addEventListener('pointerdown', (event) => {
+        if (!drawer.classList.contains('open') || event.target.closest('button')) return;
+        drawerHandle.setPointerCapture(event.pointerId);
+        drag = { id: event.pointerId, x: event.clientX, lastX: event.clientX, lastTime: performance.now(), velocity: 0 };
+        drawer.classList.add('dragging');
+    });
+    drawerHandle.addEventListener('pointermove', (event) => {
+        if (!drag || drag.id !== event.pointerId) return;
+        const now = performance.now();
+        const delta = Math.max(0, event.clientX - drag.x);
+        drag.velocity = (event.clientX - drag.lastX) / Math.max(1, now - drag.lastTime);
+        drag.lastX = event.clientX;
+        drag.lastTime = now;
+        drawer.style.transform = `translateX(${delta}px)`;
+        drawerScrim.style.opacity = String(Math.max(0, 1 - delta / drawer.offsetWidth));
+    });
+    drawerHandle.addEventListener('pointerup', (event) => {
+        if (!drag || drag.id !== event.pointerId) return;
+        const delta = Math.max(0, event.clientX - drag.x);
+        const dismiss = delta > drawer.offsetWidth * .24 || drag.velocity > .45;
+        drag = null;
+        drawer.classList.remove('dragging');
+        drawer.style.transform = '';
+        drawerScrim.style.opacity = '';
+        if (dismiss) closeDrawer();
+    });
+    drawerHandle.addEventListener('pointercancel', () => {
+        drag = null;
+        drawer.classList.remove('dragging');
+        drawer.style.transform = '';
+        drawerScrim.style.opacity = '';
+    });
+</script>
+</body>
+</html>

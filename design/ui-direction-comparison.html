@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#eef3f4">
+    <title>ATNetool - UI 方向设计稿</title>
+    <style>
+        :root {
+            font-family: Inter, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+            font-synthesis: none;
+            letter-spacing: 0;
+            --canvas: #e9eef0;
+            --surface: #f8fafb;
+            --surface-2: #eef3f4;
+            --surface-3: #e3eaec;
+            --ink: #172428;
+            --ink-2: #3f5359;
+            --ink-3: #687b81;
+            --line: #bdcbd0;
+            --line-strong: #8fa2a8;
+            --teal: #087f87;
+            --teal-soft: #d7ecee;
+            --green: #177a4c;
+            --green-soft: #ddf0e6;
+            --amber: #a26308;
+            --amber-soft: #f5ead5;
+            --red: #b33b34;
+            --red-soft: #f6e0de;
+            --blue: #3267a8;
+            --mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+            --shadow: 0 18px 45px rgba(39, 58, 64, .13);
+        }
+
+        html[data-theme="dark"] {
+            --canvas: #080d0f;
+            --surface: #0d1417;
+            --surface-2: #121c20;
+            --surface-3: #182429;
+            --ink: #eef4f5;
+            --ink-2: #bfd0d4;
+            --ink-3: #879a9f;
+            --line: #29393f;
+            --line-strong: #486068;
+            --teal: #55d4db;
+            --teal-soft: #143136;
+            --green: #55d596;
+            --green-soft: #163127;
+            --amber: #e5b45c;
+            --amber-soft: #342a17;
+            --red: #f07d76;
+            --red-soft: #39201f;
+            --blue: #79aef1;
+            --shadow: 0 22px 58px rgba(0, 0, 0, .38);
+        }
+
+        * { box-sizing: border-box; }
+        html { min-width: 800px; min-height: 100%; background: var(--canvas); }
+        body { min-height: 100vh; margin: 0; color: var(--ink); background: var(--canvas); }
+        button, input { font: inherit; letter-spacing: 0; }
+        button { color: inherit; cursor: pointer; }
+        button:focus-visible, input:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+        [hidden] { display: none !important; }
+        .mono { font-family: var(--mono); }
+
+        .showroom-bar {
+            position: sticky;
+            z-index: 20;
+            top: 0;
+            display: flex;
+            min-height: 66px;
+            align-items: center;
+            gap: 22px;
+            padding: 10px 24px;
+            border-bottom: 1px solid var(--line);
+            background: color-mix(in srgb, var(--surface) 94%, transparent);
+            backdrop-filter: blur(14px);
+        }
+        .showroom-title { min-width: 196px; }
+        .showroom-title strong { display: block; font-size: 15px; }
+        .showroom-title span { display: block; margin-top: 3px; color: var(--ink-3); font-size: 12px; }
+        .direction-switcher { display: grid; flex: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; max-width: 750px; }
+        .direction-switcher button {
+            min-height: 42px;
+            padding: 7px 12px;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            background: transparent;
+            color: var(--ink-2);
+            text-align: left;
+        }
+        .direction-switcher button span { display: block; font-size: 12px; font-weight: 700; }
+        .direction-switcher button small { display: block; margin-top: 2px; color: var(--ink-3); font-size: 10px; }
+        .direction-switcher button.active { border-color: var(--line); background: var(--surface-2); color: var(--ink); }
+        .showroom-actions { display: flex; margin-left: auto; gap: 8px; }
+        .icon-button {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 5px;
+            background: var(--surface);
+            font-size: 17px;
+        }
+
+        .prototype { display: none; min-height: calc(100vh - 66px); }
+        .prototype.active { display: block; }
+        .prototype button { transition: transform 140ms ease, background 140ms ease, border-color 140ms ease; }
+        .prototype button:hover { transform: translateY(-1px); }
+        .app-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+        .brand { display: flex; align-items: center; gap: 11px; }
+        .brand-mark {
+            display: grid;
+            width: 36px;
+            height: 36px;
+            grid-template-columns: repeat(3, 4px);
+            align-items: end;
+            justify-content: center;
+            gap: 4px;
+            padding-bottom: 8px;
+            border: 1px solid currentColor;
+            border-radius: 5px;
+            color: var(--teal);
+        }
+        .brand-mark i { width: 4px; background: currentColor; }
+        .brand-mark i:nth-child(1) { height: 9px; }
+        .brand-mark i:nth-child(2) { height: 17px; }
+        .brand-mark i:nth-child(3) { height: 23px; }
+        .brand strong { display: block; font-size: 15px; }
+        .brand small { display: block; margin-top: 2px; color: var(--ink-3); font-size: 11px; }
+        .engine { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 12px; }
+        .engine i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px color-mix(in srgb, var(--green) 60%, transparent); }
+        .primary, .secondary, .quiet {
+            min-height: 42px;
+            padding: 0 16px;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .primary { border: 1px solid var(--teal); color: #fff; background: #087f87; }
+        html[data-theme="dark"] .primary { color: #071214; background: #55d4db; }
+        .secondary { border: 1px solid var(--line-strong); background: var(--surface); }
+        .quiet { border: 1px solid transparent; color: var(--ink-2); background: transparent; }
+        .tag { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+        .tag.warning { color: var(--amber); background: var(--amber-soft); }
+        .tag.healthy { color: var(--green); background: var(--green-soft); }
+        .tag.info { color: var(--teal); background: var(--teal-soft); }
+
+        /* Direction A: professional workbench */
+        .workbench { padding: 0 24px 30px; background-image: linear-gradient(rgba(75, 105, 112, .05) 1px, transparent 1px), linear-gradient(90deg, rgba(75, 105, 112, .05) 1px, transparent 1px); background-size: 40px 40px; }
+        .workbench .app-header { min-height: 72px; }
+        .workbench-nav { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); border: 1px solid var(--line); background: var(--surface); }
+        .workbench-nav button { min-height: 46px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--ink-2); font-size: 13px; }
+        .workbench-nav button:last-child { border-right: 0; }
+        .workbench-nav button.active { box-shadow: inset 0 -3px var(--teal); color: var(--teal); background: var(--teal-soft); font-weight: 700; }
+        .workbench-main { margin-top: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: var(--shadow); }
+        .workbench-title { display: flex; align-items: center; justify-content: space-between; padding: 22px 26px 18px; }
+        .workbench-title h1 { margin: 0; font-size: 20px; }
+        .workbench-title p { margin: 5px 0 0; color: var(--ink-2); font-size: 13px; }
+        .diagnose-bar { display: grid; grid-template-columns: minmax(250px, 1fr) minmax(310px, 1.25fr) 176px; align-items: end; gap: 14px; padding: 0 26px 22px; border-bottom: 1px solid var(--line); }
+        .field label { display: block; margin-bottom: 7px; color: var(--ink-2); font-size: 13px; font-weight: 700; }
+        .input { display: flex; height: 44px; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); }
+        .input span { color: var(--teal); font-family: var(--mono); font-weight: 700; }
+        .input input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 14px; }
+        .segments { display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; height: 44px; border: 1px solid var(--line-strong); border-radius: 4px; }
+        .segments button { border: 0; border-right: 1px solid var(--line); background: transparent; font-size: 13px; }
+        .segments button:last-child { border-right: 0; }
+        .segments button.active { color: var(--teal); background: var(--teal-soft); font-weight: 700; }
+        .diagnose-bar .primary { height: 44px; }
+        .workbench-summary { display: grid; grid-template-columns: minmax(240px, 1.2fr) repeat(4, minmax(120px, .65fr)); border-bottom: 1px solid var(--line); }
+        .health-summary { display: flex; align-items: center; gap: 15px; padding: 20px 24px; border-right: 1px solid var(--line); }
+        .health-ring { display: grid; width: 58px; height: 58px; flex: 0 0 58px; place-items: center; border: 6px solid var(--amber-soft); border-top-color: var(--amber); border-right-color: var(--amber); border-radius: 50%; color: var(--ink); font-family: var(--mono); font-size: 18px; font-weight: 800; }
+        .health-summary strong { display: block; font-size: 16px; }
+        .health-summary span { display: block; margin-top: 5px; color: var(--ink-2); font-size: 13px; }
+        .summary-metric { padding: 20px 18px; border-right: 1px solid var(--line); }
+        .summary-metric:last-child { border-right: 0; }
+        .summary-metric span { display: block; color: var(--ink-3); font-size: 12px; }
+        .summary-metric strong { display: block; margin-top: 10px; font-family: var(--mono); font-size: 17px; }
+        .summary-metric small { display: block; margin-top: 4px; color: var(--ink-2); font-size: 11px; }
+        .workbench-results { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(330px, .8fr); }
+        .result-column + .result-column { border-left: 1px solid var(--line); }
+        .column-heading { display: flex; align-items: center; justify-content: space-between; min-height: 52px; padding: 0 20px; border-bottom: 1px solid var(--line); }
+        .column-heading strong { font-size: 15px; }
+        .column-heading span { color: var(--ink-3); font-size: 12px; }
+        .finding-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 13px; padding: 17px 20px; border-bottom: 1px solid var(--line); }
+        .finding-row:last-child { border-bottom: 0; }
+        .severity-dot { width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 4px var(--amber-soft); }
+        .severity-dot.green { background: var(--green); box-shadow: 0 0 0 4px var(--green-soft); }
+        .finding-row h3 { margin: 0; font-size: 15px; }
+        .finding-row p { margin: 6px 0 0; color: var(--ink-2); font-size: 13px; line-height: 1.55; }
+        .finding-row .evidence { margin-top: 8px; color: var(--ink-3); font-family: var(--mono); font-size: 11px; }
+        .finding-row .quiet { align-self: center; padding: 0 9px; }
+        .action-row { display: grid; grid-template-columns: 35px minmax(0, 1fr); gap: 12px; padding: 17px 20px; border-bottom: 1px solid var(--line); }
+        .priority { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--teal); font-family: var(--mono); font-size: 12px; font-weight: 800; }
+        .action-row h3 { margin: 1px 0 0; font-size: 14px; }
+        .action-row p { margin: 5px 0 0; color: var(--ink-2); font-size: 13px; line-height: 1.5; }
+        .action-row button { margin-top: 10px; padding: 0; border: 0; color: var(--teal); background: transparent; font-size: 12px; font-weight: 700; }
+
+        /* Direction B: network command center */
+        .command-center { min-height: calc(100vh - 66px); color: #dfe9ea; background: #071012; }
+        .command-layout { display: grid; grid-template-columns: 178px minmax(0, 1fr); min-height: calc(100vh - 66px); }
+        .command-sidebar { display: flex; flex-direction: column; padding: 22px 14px; border-right: 1px solid #23353a; background: #091417; }
+        .command-sidebar .brand { padding: 0 8px 23px; }
+        .command-sidebar .brand small { color: #7e9297; }
+        .command-nav { display: grid; gap: 5px; }
+        .command-nav button { display: flex; min-height: 42px; align-items: center; gap: 10px; padding: 0 11px; border: 1px solid transparent; border-radius: 4px; color: #91a4a9; background: transparent; text-align: left; font-size: 13px; }
+        .command-nav button span { display: grid; width: 22px; height: 22px; place-items: center; color: #6c858b; font-family: var(--mono); font-size: 10px; }
+        .command-nav button.active { border-color: #2c535a; color: #62dce2; background: #11282d; }
+        .command-node { margin-top: auto; padding: 14px 11px; border-top: 1px solid #23353a; color: #83979c; font-size: 12px; line-height: 1.7; }
+        .command-node strong { display: block; color: #56d395; }
+        .command-main { min-width: 0; padding: 0 24px 28px; background-image: linear-gradient(rgba(79, 133, 143, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(79, 133, 143, .055) 1px, transparent 1px); background-size: 44px 44px; }
+        .command-main .app-header { min-height: 70px; border-bottom: 1px solid #24363b; }
+        .command-subnav { display: flex; min-height: 48px; overflow-x: auto; align-items: stretch; margin-top: 14px; border: 1px solid #2b3e44; background: rgba(10, 20, 23, .94); }
+        .command-subnav button { min-width: 112px; padding: 0 17px; border: 0; border-right: 1px solid #26383d; color: #8ea2a7; background: transparent; font-size: 13px; }
+        .command-subnav button:last-child { border-right: 0; }
+        .command-subnav button.active { color: #55d4db; background: #11282d; box-shadow: inset 0 -2px #55d4db; font-weight: 700; }
+        .command-subnav[hidden] { display: none; }
+        .command-title h1 { margin: 0; font-size: 20px; }
+        .command-title p { margin: 5px 0 0; color: #84989d; font-size: 12px; }
+        .command-actions { display: flex; align-items: center; gap: 9px; }
+        .live-state { display: flex; align-items: center; gap: 8px; color: #55d596; font-size: 12px; }
+        .live-state i { width: 8px; height: 8px; border-radius: 50%; background: #55d596; box-shadow: 0 0 13px rgba(85, 213, 150, .65); animation: pulse 1.8s ease-in-out infinite; }
+        .command-actions .primary { color: #071214; background: #55d4db; }
+        .command-overview { display: grid; grid-template-columns: 220px minmax(0, 1fr); margin-top: 18px; border: 1px solid #2b3e44; background: rgba(10, 20, 23, .92); box-shadow: 0 22px 60px rgba(0, 0, 0, .3); }
+        .score-panel { display: flex; flex-direction: column; justify-content: center; padding: 24px; border-right: 1px solid #2b3e44; }
+        .score-panel span { color: #89a0a5; font-size: 12px; }
+        .score-panel strong { margin-top: 10px; color: #eab95f; font-family: var(--mono); font-size: 46px; line-height: 1; }
+        .score-panel strong small { color: #74898e; font-size: 17px; }
+        .score-panel p { margin: 10px 0 0; color: #c0cdd0; font-size: 14px; }
+        .route-panel { min-width: 0; padding: 22px 25px; }
+        .route-head { display: flex; align-items: center; justify-content: space-between; }
+        .route-head strong { font-size: 15px; }
+        .route-head span { color: #81969b; font-size: 12px; }
+        .route-line { display: grid; position: relative; grid-template-columns: repeat(5, minmax(80px, 1fr)); gap: 16px; margin-top: 29px; }
+        .route-line::before { content: ""; position: absolute; top: 17px; right: 9%; left: 9%; height: 2px; background: linear-gradient(90deg, #55d596 0 23%, #55d4db 23% 71%, #e5b45c 71%); }
+        .route-node { position: relative; z-index: 1; min-width: 0; text-align: center; }
+        .route-node i { display: grid; width: 36px; height: 36px; margin: 0 auto; place-items: center; border: 2px solid #55d4db; border-radius: 50%; color: #55d4db; background: #0a1518; font-family: var(--mono); font-size: 10px; font-style: normal; box-shadow: 0 0 0 6px rgba(85, 212, 219, .07); }
+        .route-node.warn i { border-color: #e5b45c; color: #e5b45c; box-shadow: 0 0 0 6px rgba(229, 180, 92, .08); }
+        .route-node strong { display: block; overflow: hidden; margin-top: 10px; color: #dbe7e9; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+        .route-node small { display: block; margin-top: 4px; color: #83969b; font-family: var(--mono); font-size: 10px; }
+        .command-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(310px, .7fr); gap: 14px; margin-top: 14px; }
+        .matrix, .response-queue { border: 1px solid #2b3e44; background: rgba(10, 20, 23, .94); }
+        .command-section-head { display: flex; min-height: 50px; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid #2b3e44; }
+        .command-section-head strong { font-size: 15px; }
+        .command-section-head span { color: #7f9499; font-size: 11px; }
+        .matrix-row { display: grid; grid-template-columns: 120px 90px minmax(0, 1fr) 92px; align-items: center; min-height: 58px; padding: 0 18px; border-bottom: 1px solid #1f3035; }
+        .matrix-row:last-child { border-bottom: 0; }
+        .matrix-row > strong { font-size: 13px; }
+        .matrix-row > span { color: #91a4a9; font-size: 12px; }
+        .command-center .tag.healthy { color: #55d596; background: #163127; }
+        .command-center .tag.warning { color: #e5b45c; background: #342a17; }
+        .matrix-bar { height: 6px; overflow: hidden; border-radius: 3px; background: #1d2b30; }
+        .matrix-bar i { display: block; height: 100%; background: #55d596; }
+        .matrix-row.warn .matrix-bar i { background: #e5b45c; }
+        .matrix-row em { color: #a7b8bc; font-family: var(--mono); font-size: 11px; font-style: normal; text-align: right; }
+        .queue-item { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 16px 17px; border-bottom: 1px solid #1f3035; }
+        .queue-item:last-child { border-bottom: 0; }
+        .queue-item > span { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid #486168; color: #55d4db; font-family: var(--mono); font-size: 11px; }
+        .queue-item strong { display: block; font-size: 13px; }
+        .queue-item p { margin: 5px 0 0; color: #94a6aa; font-size: 12px; line-height: 1.5; }
+        .queue-item button { margin-top: 8px; padding: 0; border: 0; color: #55d4db; background: transparent; font-size: 12px; font-weight: 700; }
+        .telemetry { display: grid; grid-template-columns: repeat(6, 1fr); margin-top: 14px; border: 1px solid #2b3e44; background: rgba(10, 20, 23, .94); }
+        .telemetry div { padding: 15px 17px; border-right: 1px solid #2b3e44; }
+        .telemetry div:last-child { border-right: 0; }
+        .telemetry span { display: block; color: #7f9499; font-size: 11px; }
+        .telemetry strong { display: block; margin-top: 7px; font-family: var(--mono); font-size: 14px; }
+
+        .command-content-panel { display: none; }
+        .command-content-panel.active { display: block; }
+        .command-toolbar {
+            display: grid;
+            grid-template-columns: minmax(210px, 1.4fr) minmax(150px, .8fr) minmax(150px, .8fr) auto;
+            align-items: end;
+            gap: 12px;
+            margin-top: 18px;
+            padding: 16px;
+            border: 1px solid #2b3e44;
+            background: rgba(10, 20, 23, .94);
+        }
+        .command-toolbar.two { grid-template-columns: minmax(260px, 1fr) auto; }
+        .command-toolbar.three { grid-template-columns: minmax(230px, 1fr) minmax(210px, .8fr) auto; }
+        .cc-field { min-width: 0; }
+        .cc-field > span { display: block; margin-bottom: 7px; color: #8da1a6; font-size: 12px; font-weight: 700; }
+        .cc-input, .cc-select, .cc-textarea {
+            width: 100%;
+            border: 1px solid #3a5057;
+            border-radius: 3px;
+            outline: 0;
+            color: #e2ecee;
+            background: #081215;
+            font-size: 13px;
+        }
+        .cc-input, .cc-select { height: 42px; padding: 0 11px; }
+        .cc-textarea { min-height: 76px; padding: 10px 11px; resize: vertical; line-height: 1.55; }
+        .cc-input:focus, .cc-select:focus, .cc-textarea:focus { border-color: #55d4db; box-shadow: 0 0 0 3px rgba(85, 212, 219, .08); }
+        .cc-button {
+            min-height: 42px;
+            padding: 0 17px;
+            border: 1px solid #55d4db;
+            border-radius: 3px;
+            color: #071214;
+            background: #55d4db;
+            font-size: 13px;
+            font-weight: 800;
+        }
+        .cc-button.secondary { color: #b8c9cd; border-color: #40565d; background: #101c20; }
+        .cc-button:disabled { opacity: .58; cursor: wait; }
+        .cc-section { margin-top: 14px; border: 1px solid #2b3e44; background: rgba(10, 20, 23, .94); }
+        .cc-section-head { display: flex; min-height: 50px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 17px; border-bottom: 1px solid #2b3e44; }
+        .cc-section-head strong { font-size: 15px; }
+        .cc-section-head span { color: #81969b; font-size: 11px; }
+        .cc-section-actions { display: flex; align-items: center; gap: 8px; }
+        .cc-section-actions button { min-height: 30px; padding: 0 10px; border: 1px solid #344b52; border-radius: 3px; color: #9db0b5; background: #0b171a; font-size: 11px; }
+        .cc-section-actions button.active { color: #55d4db; border-color: #37747b; background: #112b30; }
+        .cc-metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-bottom: 1px solid #2b3e44; }
+        .cc-metrics > div { min-width: 0; padding: 16px; border-right: 1px solid #26383d; }
+        .cc-metrics > div:last-child { border-right: 0; }
+        .cc-metrics span { display: block; color: #7f9499; font-size: 11px; }
+        .cc-metrics strong { display: block; overflow: hidden; margin-top: 7px; color: #e0eaec; font-family: var(--mono); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+        .cc-metrics small { display: block; margin-top: 4px; color: #82969b; font-size: 10px; }
+        .cc-table { width: 100%; overflow-x: auto; }
+        .cc-row { display: grid; min-width: 760px; align-items: center; min-height: 52px; padding: 0 16px; border-bottom: 1px solid #1f3035; }
+        .cc-row:last-child { border-bottom: 0; }
+        .cc-row.head { min-height: 38px; color: #768b90; background: #0b171a; font-size: 10px; font-weight: 700; }
+        .cc-row:not(.head) { color: #b8c8cb; font-size: 12px; }
+        .cc-row strong { color: #e0eaec; font-size: 12px; }
+        .cc-row em { color: #55d596; font-style: normal; }
+        .cc-row em.warning { color: #e5b45c; }
+        .cols-dns { grid-template-columns: 1.1fr .7fr 1.6fr 1.5fr .8fr .7fr; }
+        .cols-port { grid-template-columns: .55fr .8fr 1.4fr .7fr .8fr .9fr 1fr; }
+        .cols-patrol { grid-template-columns: 1.2fr 1.5fr .7fr .7fr .8fr .8fr; }
+        .cols-cdn { grid-template-columns: .45fr 1.3fr .65fr .65fr .65fr .65fr .75fr .7fr; }
+        .cols-path { grid-template-columns: 1fr 1.3fr .7fr .75fr .75fr .75fr .8fr; }
+        .cols-history { grid-template-columns: 36px 1.15fr 1.4fr 1fr 1.1fr .8fr; }
+        .cc-split { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 14px; margin-top: 14px; }
+        .cc-split > .cc-section { min-width: 0; margin-top: 0; }
+        .cc-note-list article { padding: 15px 17px; border-bottom: 1px solid #1f3035; }
+        .cc-note-list article:last-child { border-bottom: 0; }
+        .cc-note-list strong { display: block; color: #dbe6e8; font-size: 13px; }
+        .cc-note-list p { margin: 5px 0 0; color: #91a4a9; font-size: 12px; line-height: 1.55; }
+        .cc-note-list button { margin-top: 8px; padding: 0; border: 0; color: #55d4db; background: transparent; font-size: 12px; }
+        .cc-preset-list { display: flex; flex-wrap: wrap; gap: 7px; padding: 12px 16px; border-top: 1px solid #24363b; }
+        .cc-preset-list button { min-height: 30px; padding: 0 10px; border: 1px solid #334a51; border-radius: 3px; color: #93a8ad; background: #0b171a; font-size: 11px; }
+        .cc-preset-list button.active { color: #55d4db; border-color: #37747b; background: #112b30; }
+        .cc-topology { display: grid; position: relative; grid-template-columns: repeat(6, minmax(70px, 1fr)); gap: 12px; padding: 28px 20px 24px; }
+        .cc-topology::before { content: ""; position: absolute; top: 47px; right: 8%; left: 8%; height: 2px; background: linear-gradient(90deg, #55d596, #55d4db 58%, #e5b45c); }
+        .cc-hop { position: relative; z-index: 1; min-width: 0; text-align: center; }
+        .cc-hop i { display: grid; width: 40px; height: 40px; margin: 0 auto; place-items: center; border: 2px solid #55d4db; border-radius: 50%; color: #55d4db; background: #091518; font-family: var(--mono); font-size: 10px; font-style: normal; }
+        .cc-hop.warn i { color: #e5b45c; border-color: #e5b45c; }
+        .cc-hop strong { display: block; overflow: hidden; margin-top: 9px; color: #d8e4e6; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+        .cc-hop small { display: block; margin-top: 4px; color: #7f9499; font-family: var(--mono); font-size: 10px; }
+        .cc-chart { position: relative; height: 250px; padding: 18px; }
+        .cc-chart::before { content: ""; position: absolute; inset: 18px; background-image: linear-gradient(#213238 1px, transparent 1px), linear-gradient(90deg, #213238 1px, transparent 1px); background-size: 20% 25%; }
+        .cc-chart canvas { position: relative; z-index: 1; width: 100%; height: 100%; }
+        .cc-event { display: grid; grid-template-columns: 72px 90px 1fr; gap: 10px; padding: 13px 16px; border-bottom: 1px solid #1f3035; color: #9bafb3; font-size: 12px; }
+        .cc-event time { color: #748a8f; font-family: var(--mono); }
+        .site-selector { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 15px; }
+        .site-selector button { min-height: 48px; padding: 0 12px; border: 1px solid #344b52; border-radius: 3px; color: #91a4a9; background: #0b171a; text-align: left; font-size: 12px; }
+        .site-selector button.active { color: #dce8ea; border-color: #3a737a; background: #11282d; }
+        .site-selector button::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border: 1px solid #597077; border-radius: 2px; }
+        .site-selector button.active::before { border-color: #55d4db; background: #55d4db; box-shadow: inset 0 0 0 2px #11282d; }
+        .baseline-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid #2b3e44; }
+        .baseline-card { min-width: 0; padding: 18px; border-right: 1px solid #2b3e44; }
+        .baseline-card:last-child { border-right: 0; }
+        .baseline-card > span { display: flex; align-items: center; gap: 7px; color: #7e9398; font-size: 11px; }
+        .baseline-card > span::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #55d596; box-shadow: 0 0 8px rgba(85, 213, 150, .55); }
+        .baseline-card strong { display: block; margin-top: 12px; color: #e1ebed; font-size: 14px; }
+        .baseline-card p { margin: 6px 0 0; color: #8fa3a8; font-size: 11px; line-height: 1.5; }
+        .path-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px; }
+        .path-card { padding: 16px; border: 1px solid #2e4248; background: #0a1518; }
+        .path-card.best { border-color: #34735d; background: #0e201b; }
+        .path-card span { color: #7d9297; font-size: 11px; }
+        .path-card strong { display: block; margin-top: 10px; font-family: var(--mono); font-size: 20px; }
+        .path-card p { margin: 6px 0 0; color: #8fa2a7; font-size: 11px; }
+        .history-check { width: 16px; height: 16px; accent-color: #55d4db; }
+        .history-compare { display: none; padding: 16px; border-top: 1px solid #2b3e44; background: #0c191c; }
+        .history-compare.open { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .history-compare div { padding: 13px; border: 1px solid #2d4248; }
+        .history-compare span { display: block; color: #7e9398; font-size: 11px; }
+        .history-compare strong { display: block; margin-top: 7px; color: #55d596; font-family: var(--mono); font-size: 14px; }
+        .history-compare small { display: block; margin-top: 4px; color: #879b9f; font-size: 10px; }
+        .trend-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 14px; margin-top: 14px; }
+        .trend-layout > .cc-section { min-width: 0; margin-top: 0; }
+        .trend-chart { display: flex; height: 255px; align-items: flex-end; gap: 12px; padding: 24px 22px 18px; background-image: linear-gradient(#213238 1px, transparent 1px); background-size: 100% 25%; }
+        .trend-column { display: flex; min-width: 0; flex: 1; height: 100%; flex-direction: column; justify-content: flex-end; gap: 7px; }
+        .trend-column i { display: block; width: 100%; min-height: 8px; border-top: 2px solid #55d4db; background: linear-gradient(to top, rgba(85, 212, 219, .08), rgba(85, 212, 219, .34)); }
+        .trend-column.improved i { border-color: #55d596; background: linear-gradient(to top, rgba(85, 213, 150, .08), rgba(85, 213, 150, .36)); }
+        .trend-column span { overflow: hidden; color: #7f9499; font-family: var(--mono); font-size: 9px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+        .trend-legend { display: flex; gap: 15px; padding: 0 20px 15px; color: #80959a; font-size: 11px; }
+        .trend-legend span::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #55d4db; }
+        .trend-legend span:last-child::before { background: #55d596; }
+
+        /* Direction C: diagnosis report */
+        .report-center { padding-bottom: 40px; background: var(--surface-2); }
+        .report-center .app-header { min-height: 72px; padding: 0 max(28px, calc((100% - 1220px) / 2)); border-bottom: 1px solid var(--line); background: var(--surface); }
+        .report-actions { display: flex; align-items: center; gap: 8px; }
+        .report-shell { display: grid; width: min(1220px, calc(100% - 56px)); grid-template-columns: 196px minmax(0, 1fr); gap: 30px; margin: 28px auto 0; }
+        .report-outline { position: sticky; top: 92px; align-self: start; }
+        .report-outline strong { display: block; margin-bottom: 12px; color: var(--ink-3); font-size: 12px; }
+        .report-outline button { display: block; width: 100%; min-height: 39px; padding: 0 11px; border: 0; border-left: 2px solid var(--line); color: var(--ink-2); background: transparent; text-align: left; font-size: 13px; }
+        .report-outline button.active { border-left-color: var(--teal); color: var(--teal); background: var(--teal-soft); font-weight: 700; }
+        .report-meta { margin-top: 22px; padding: 14px 11px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 11px; line-height: 1.8; }
+        .report-paper { overflow: hidden; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
+        .report-cover { padding: 34px 40px 28px; border-bottom: 1px solid var(--line); }
+        .report-kicker { color: var(--teal); font-family: var(--mono); font-size: 12px; font-weight: 700; }
+        .report-cover h1 { max-width: 760px; margin: 12px 0 0; font-size: 26px; line-height: 1.35; }
+        .report-cover > p { max-width: 770px; margin: 12px 0 0; color: var(--ink-2); font-size: 14px; line-height: 1.65; }
+        .report-facts { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 25px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+        .report-facts div { padding: 15px 13px; border-right: 1px solid var(--line); }
+        .report-facts div:first-child { padding-left: 0; }
+        .report-facts div:last-child { border-right: 0; }
+        .report-facts span { display: block; color: var(--ink-3); font-size: 12px; }
+        .report-facts strong { display: block; margin-top: 7px; font-family: var(--mono); font-size: 14px; }
+        .report-content { padding: 0 40px 34px; }
+        .report-section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 27px 0 13px; border-bottom: 2px solid var(--ink); }
+        .report-section-title h2 { margin: 0; font-size: 18px; }
+        .report-section-title span { color: var(--ink-3); font-size: 12px; }
+        .issue { border-bottom: 1px solid var(--line); }
+        .issue-head { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 13px; padding: 20px 0; }
+        .issue-index { color: var(--ink-3); font-family: var(--mono); font-size: 12px; }
+        .issue h3 { margin: 0; font-size: 16px; }
+        .issue p { margin: 7px 0 0; color: var(--ink-2); font-size: 13px; line-height: 1.6; }
+        .issue-body { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 0 0 20px 55px; }
+        .evidence-box, .treatment-box { padding: 15px 17px; border-left: 3px solid var(--line-strong); background: var(--surface-2); }
+        .treatment-box { border-left-color: var(--teal); }
+        .issue-body strong { display: block; font-size: 13px; }
+        .issue-body p { margin-top: 6px; }
+        .issue-body button { margin-top: 10px; padding: 0; border: 0; color: var(--teal); background: transparent; font-size: 12px; font-weight: 700; }
+        .raw-details { margin-top: 22px; border: 1px solid var(--line); }
+        .raw-details > button { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: space-between; padding: 0 15px; border: 0; background: var(--surface-2); font-size: 13px; font-weight: 700; }
+        .raw-panel { padding: 15px; border-top: 1px solid var(--line); color: var(--ink-2); background: var(--surface); font-family: var(--mono); font-size: 12px; line-height: 1.8; }
+
+        .detail-drawer {
+            position: fixed;
+            z-index: 40;
+            top: 0;
+            right: 0;
+            display: flex;
+            width: min(430px, 42vw);
+            height: 100vh;
+            flex-direction: column;
+            padding: 24px;
+            border-left: 1px solid var(--line);
+            background: var(--surface);
+            box-shadow: -20px 0 50px rgba(0, 0, 0, .18);
+            transform: translateX(105%);
+            transition: transform 220ms ease;
+        }
+        .detail-drawer.open { transform: translateX(0); }
+        .drawer-head { display: flex; align-items: center; justify-content: space-between; }
+        .drawer-head h2 { margin: 0; font-size: 18px; }
+        .drawer-close { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--line); background: transparent; }
+        .detail-drawer > p { color: var(--ink-2); font-size: 13px; line-height: 1.65; }
+        .detail-table { margin-top: 10px; border-top: 1px solid var(--line); }
+        .detail-table div { display: grid; grid-template-columns: 105px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+        .detail-table span { color: var(--ink-3); }
+        .detail-table strong { overflow-wrap: anywhere; font-family: var(--mono); }
+        .drawer-backdrop { position: fixed; z-index: 35; inset: 0; background: rgba(3, 8, 10, .46); opacity: 0; pointer-events: none; transition: opacity 220ms ease; }
+        .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+        .toast { position: fixed; z-index: 50; right: 24px; bottom: 24px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 4px; color: var(--ink); background: var(--surface); box-shadow: var(--shadow); font-size: 13px; opacity: 0; transform: translateY(12px); pointer-events: none; transition: 180ms ease; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .running-label::after { content: ""; display: inline-block; width: 12px; height: 12px; margin-left: 9px; vertical-align: -2px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 50% { opacity: .45; } }
+
+        @media (max-width: 1050px) {
+            .direction-switcher button small { display: none; }
+            .diagnose-bar { grid-template-columns: 1fr 1fr; }
+            .diagnose-bar .primary { grid-column: 1 / -1; }
+            .workbench-summary { grid-template-columns: 1.3fr repeat(2, 1fr); }
+            .summary-metric:nth-last-child(-n+2) { border-top: 1px solid var(--line); }
+            .workbench-results { grid-template-columns: 1fr; }
+            .result-column + .result-column { border-top: 1px solid var(--line); border-left: 0; }
+            .command-overview { grid-template-columns: 1fr; }
+            .score-panel {
+                display: grid;
+                grid-template-columns: auto auto 1fr;
+                align-items: center;
+                justify-content: start;
+                gap: 14px;
+                border-right: 0;
+                border-bottom: 1px solid #2b3e44;
+            }
+            .score-panel strong,
+            .score-panel p { margin-top: 0; }
+            .command-grid { grid-template-columns: 1fr; }
+            .command-toolbar,
+            .command-toolbar.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .command-toolbar > .cc-button,
+            .command-toolbar.three > .cc-button { grid-column: 1 / -1; }
+            .command-toolbar.two { grid-template-columns: minmax(0, 1fr) auto; }
+            .command-toolbar.two > .cc-button { grid-column: auto; }
+            .cc-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .cc-metrics > div:nth-child(3) { border-right: 0; }
+            .cc-metrics > div:nth-child(n+4) { border-top: 1px solid #26383d; }
+            .cc-split { grid-template-columns: 1fr; }
+            .trend-layout { grid-template-columns: 1fr; }
+            .site-selector { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .baseline-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .baseline-card:nth-child(2) { border-right: 0; }
+            .baseline-card:nth-child(-n+2) { border-bottom: 1px solid #2b3e44; }
+            .telemetry { grid-template-columns: repeat(3, 1fr); }
+            .telemetry div:nth-child(3) { border-right: 0; }
+            .telemetry div:nth-child(-n+3) { border-bottom: 1px solid #2b3e44; }
+            .report-shell { grid-template-columns: 160px 1fr; gap: 20px; }
+        }
+    </style>
+</head>
+<body>
+<header class="showroom-bar">
+    <div class="showroom-title">
+        <strong>ATNetool · UI 方向稿</strong>
+        <span>同一诊断结果，三种产品表达</span>
+    </div>
+    <nav class="direction-switcher" aria-label="设计方向">
+        <button class="active" type="button" data-prototype="workbench"><span>方案 A · 专业工作台</span><small>均衡、清晰、可持续扩展</small></button>
+        <button type="button" data-prototype="command"><span>方案 B · 指挥中心</span><small>链路优先、实时、科技感</small></button>
+        <button type="button" data-prototype="report"><span>方案 C · 报告中心</span><small>问题驱动、证据与治理绑定</small></button>
+    </nav>
+    <div class="showroom-actions">
+        <button class="icon-button" id="theme-toggle" type="button" title="切换亮暗主题" aria-label="切换亮暗主题">◐</button>
+    </div>
+</header>
+
+<section class="prototype workbench active" data-view="workbench">
+    <header class="app-header">
+        <div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span><div><strong>ATNetool</strong><small>NETWORK ASSISTANT</small></div></div>
+        <div class="engine"><i></i><span>本地诊断引擎已就绪</span></div>
+    </header>
+    <nav class="workbench-nav">
+        <button class="active">综合诊断</button><button>域名诊断</button><button>DNS 分析</button><button>端口检测</button><button>持续监控</button><button>历史对比</button>
+    </nav>
+    <main class="workbench-main">
+        <div class="workbench-title"><div><h1>综合诊断</h1><p>从本地网络到目标服务，一次采集完整链路证据</p></div><span class="tag warning">发现 2 项异常</span></div>
+        <div class="diagnose-bar">
+            <div class="field"><label for="target-a">目标域名或 URL</label><div class="input"><span>://</span><input id="target-a" value="www.cloudflare.com"></div></div>
+            <div class="field"><label>连接策略</label><div class="segments" data-segments><button>系统代理</button><button class="active">强制直连</button><button>手动代理</button></div></div>
+            <button class="primary run-demo" type="button">▶ 重新诊断</button>
+        </div>
+        <section class="workbench-summary">
+            <div class="health-summary"><div class="health-ring">72</div><div><strong>网络可用，存在优化空间</strong><span>主要问题位于 DNS 与出口代理</span></div></div>
+            <div class="summary-metric"><span>总耗时</span><strong>306 ms</strong><small>代理路径 677 ms</small></div>
+            <div class="summary-metric"><span>DNS</span><strong>38 ms</strong><small>2/4 结果存在差异</small></div>
+            <div class="summary-metric"><span>目标节点</span><strong>HKG</strong><small>CF-Ray 已验证</small></div>
+            <div class="summary-metric"><span>链路跳数</span><strong>12 hops</strong><small>3 个节点已定位</small></div>
+        </section>
+        <section class="workbench-results">
+            <div class="result-column">
+                <div class="column-heading"><strong>诊断结论</strong><span>5 项结果 · 按影响排序</span></div>
+                <article class="finding-row"><i class="severity-dot"></i><div><h3>DNS 解析结果存在差异</h3><p>系统 DNS 与公共 DNS 返回了不同的边缘节点，可能导致访问路径和延迟不稳定。</p><div class="evidence">SYSTEM 104.16.132.229 · DOH 104.16.133.229</div></div><button class="quiet open-drawer">查看证据</button></article>
+                <article class="finding-row"><i class="severity-dot"></i><div><h3>公网访问依赖系统代理</h3><p>IPv4 与 IPv6 中有 8 条探测通过本地代理建立连接，直连路径耗时更低。</p><div class="evidence">HTTP 127.0.0.1:7890 · DIRECT -55%</div></div><button class="quiet open-drawer">查看证据</button></article>
+                <article class="finding-row"><i class="severity-dot green"></i><div><h3>TLS 与目标服务正常</h3><p>证书链校验通过，TLS 1.3 握手成功，Cloudflare 边缘节点正常响应。</p><div class="evidence">TLS 1.3 · HTTP/2 · CF-RAY HKG</div></div><button class="quiet open-drawer">查看证据</button></article>
+            </div>
+            <div class="result-column">
+                <div class="column-heading"><strong>建议处理顺序</strong><span>基于本次证据生成</span></div>
+                <article class="action-row"><span class="priority">P1</span><div><h3>验证系统代理与强制直连</h3><p>对同一目标运行路径对照，确认故障来自代理端点还是上游服务。</p><button class="toast-trigger">运行路径对照 →</button></div></article>
+                <article class="action-row"><span class="priority">P2</span><div><h3>切换公共 DNS 后复测</h3><p>使用 DoH 与系统 DNS 分别解析，确认调度差异是否持续存在。</p><button class="toast-trigger">打开 DNS 深度诊断 →</button></div></article>
+                <article class="action-row"><span class="priority">P3</span><div><h3>保存本次结果作为基线</h3><p>治理后使用相同目标、连接策略和网络环境再次检测。</p><button class="toast-trigger">保存诊断基线 →</button></div></article>
+            </div>
+        </section>
+    </main>
+</section>
+
+<section class="prototype command-center" data-view="command">
+    <div class="command-layout">
+        <aside class="command-sidebar">
+            <div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span><div><strong>ATNetool</strong><small>NETWORK ASSISTANT</small></div></div>
+            <nav class="command-nav" aria-label="功能模块">
+                <button class="active" data-command-group="diagnosis"><span>01</span>诊断中心</button>
+                <button data-command-group="monitoring"><span>02</span>网络监测</button>
+                <button data-command-group="governance"><span>03</span>优化治理</button>
+                <button data-command-group="records"><span>04</span>历史报告</button>
+            </nav>
+            <div class="command-node"><strong>ENGINE ONLINE</strong>eth0 · 192.168.1.8<br>HTTP · 127.0.0.1:7890</div>
+        </aside>
+        <main class="command-main">
+            <header class="app-header">
+                <div class="command-title"><h1 id="command-title">诊断中心 · 综合总览</h1><p id="command-subtitle">一次采集本地网络、DNS、端口、服务链路与代理路径</p></div>
+                <div class="command-actions"><span class="live-state"><i></i><span id="command-state">引擎就绪</span></span><button class="primary run-demo" id="command-run">重新扫描</button></div>
+            </header>
+            <nav class="command-subnav" id="command-subnav" aria-label="模块视图"></nav>
+
+            <section class="command-content-panel active" data-command-panel="integrated">
+                <section class="command-overview">
+                    <div class="score-panel"><span>NETWORK HEALTH</span><strong>72<small>/100</small></strong><p>链路可用 · 2 项需关注</p></div>
+                    <div class="route-panel"><div class="route-head"><strong>当前访问链路</strong><span>端到端 306 ms · 12 hops</span></div><div class="route-line"><div class="route-node"><i>PC</i><strong>本机</strong><small>0 ms</small></div><div class="route-node"><i>GW</i><strong>本地网关</strong><small>1.8 ms</small></div><div class="route-node warn"><i>DNS</i><strong>解析节点</strong><small>38 ms</small></div><div class="route-node"><i>HKG</i><strong>CF 边缘</strong><small>82 ms</small></div><div class="route-node"><i>WEB</i><strong>目标服务</strong><small>306 ms</small></div></div></div>
+                </section>
+                <div class="command-grid">
+                    <section class="matrix"><div class="command-section-head"><strong>诊断状态矩阵</strong><span>5 MODULES / 18 CHECKS</span></div><div class="matrix-row"><strong>本地网络</strong><span class="tag healthy">正常</span><div class="matrix-bar"><i style="width:92%"></i></div><em>1.8 ms</em></div><div class="matrix-row warn"><strong>DNS 解析</strong><span class="tag warning">差异</span><div class="matrix-bar"><i style="width:58%"></i></div><em>2 / 4</em></div><div class="matrix-row"><strong>TCP / TLS</strong><span class="tag healthy">正常</span><div class="matrix-bar"><i style="width:87%"></i></div><em>74 ms</em></div><div class="matrix-row"><strong>HTTP 服务</strong><span class="tag healthy">正常</span><div class="matrix-bar"><i style="width:81%"></i></div><em>200 OK</em></div><div class="matrix-row warn"><strong>代理路径</strong><span class="tag warning">较慢</span><div class="matrix-bar"><i style="width:45%"></i></div><em>677 ms</em></div></section>
+                    <section class="response-queue"><div class="command-section-head"><strong>治理队列</strong><span>按影响排序</span></div><article class="queue-item"><span>P1</span><div><strong>验证直连路径</strong><p>直连比系统代理快 55%，优先确认代理端点状态。</p><button class="toast-trigger">立即验证 →</button></div></article><article class="queue-item"><span>P2</span><div><strong>复核 DNS 出口</strong><p>系统与 DoH 调度结果不一致。</p><button class="toast-trigger">运行 DNS 对照 →</button></div></article><article class="queue-item"><span>P3</span><div><strong>建立性能基线</strong><p>保存当前 306 ms 结果用于治理后比较。</p><button class="toast-trigger">保存基线 →</button></div></article></section>
+                </div>
+                <section class="telemetry"><div><span>出口 IPv4</span><strong>118.***.24.18</strong></div><div><span>系统代理</span><strong>127.0.0.1:7890</strong></div><div><span>DNS</span><strong>192.168.1.1</strong></div><div><span>TLS</span><strong>1.3 / 46 ms</strong></div><div><span>HTTP</span><strong>H2 / 200</strong></div><div><span>CF-RAY</span><strong>HKG</strong></div></section>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="domain">
+                <div class="command-toolbar three"><label class="cc-field"><span>目标域名或 URL</span><input class="cc-input" value="www.cloudflare.com"></label><label class="cc-field"><span>连接策略</span><select class="cc-select"><option>系统代理</option><option selected>强制直连</option><option>手动代理</option></select></label><button class="cc-button run-demo">运行链路诊断</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>端到端链路</strong><div class="cc-section-actions"><button class="active" data-domain-view="topology">地域链路</button><button data-domain-view="raw">原始跳点</button></div></div><div data-domain-content="topology"><div class="cc-topology"><div class="cc-hop"><i>01</i><strong>本机</strong><small>0 ms</small></div><div class="cc-hop"><i>02</i><strong>本地网关</strong><small>1.8 ms</small></div><div class="cc-hop"><i>04</i><strong>上海 · ISP</strong><small>12 ms</small></div><div class="cc-hop"><i>07</i><strong>广州 · 骨干</strong><small>34 ms</small></div><div class="cc-hop warn"><i>10</i><strong>中国香港</strong><small>79 ms</small></div><div class="cc-hop"><i>12</i><strong>Cloudflare</strong><small>82 ms</small></div></div></div><div class="cc-table" data-domain-content="raw" hidden><div class="cc-row head cols-path"><span>HOP</span><span>地址</span><span>RTT</span><span>位置</span><span>ASN</span><span>类型</span><span>状态</span></div><div class="cc-row cols-path"><strong>01</strong><span>192.168.1.1</span><span>1.8 ms</span><span>本地网络</span><span>PRIVATE</span><span>网关</span><em>响应</em></div><div class="cc-row cols-path"><strong>07</strong><span>202.97.91.25</span><span>34 ms</span><span>广东广州</span><span>AS4134</span><span>骨干网</span><em>响应</em></div><div class="cc-row cols-path"><strong>12</strong><span>104.16.132.229</span><span>82 ms</span><span>中国香港</span><span>AS13335</span><span>CDN</span><em>响应</em></div></div></section>
+                <section class="cc-section"><div class="cc-section-head"><strong>请求时序与服务证据</strong><span>HTTP 200 · CF-RAY 9b5e7c23f118-HKG</span></div><div class="cc-metrics"><div><span>DNS</span><strong>38 ms</strong><small>系统解析</small></div><div><span>TCP</span><strong>42 ms</strong><small>104.16.132.229</small></div><div><span>TLS</span><strong>46 ms</strong><small>TLS 1.3 / h2</small></div><div><span>TTFB</span><strong>188 ms</strong><small>边缘响应</small></div><div><span>总耗时</span><strong>306 ms</strong><small>强制直连</small></div></div></section>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="dns">
+                <div class="command-toolbar two"><label class="cc-field"><span>诊断域名</span><input class="cc-input" value="www.cloudflare.com"></label><button class="cc-button run-demo">运行 DNS 诊断</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>解析器证据矩阵</strong><span>4 RESOLVERS · 2 ADDRESS GROUPS</span></div><div class="cc-metrics"><div><span>系统解析</span><strong>38 ms</strong></div><div><span>UDP / 53</span><strong>44 ms</strong></div><div><span>DoH / HTTPS</span><strong>71 ms</strong></div><div><span>地址组</span><strong>2</strong></div><div><span>TTL 范围</span><strong>176–248s</strong></div></div><div class="cc-table"><div class="cc-row head cols-dns"><span>解析器</span><span>通道</span><span>A / AAAA</span><span>CNAME / NS</span><span>耗时</span><span>状态</span></div><div class="cc-row cols-dns"><strong>系统 DNS</strong><span>LOCAL</span><span>104.16.132.229 · 2606:4700::</span><span>-- · cloudflare.com</span><span>38 ms</span><em>正常</em></div><div class="cc-row cols-dns"><strong>AliDNS</strong><span>UDP/53</span><span>104.16.133.229 · 2606:4700::</span><span>-- · cloudflare.com</span><span>44 ms</span><em class="warning">差异</em></div><div class="cc-row cols-dns"><strong>Cloudflare</strong><span>DoH</span><span>104.16.133.229 · 2606:4700::</span><span>-- · cloudflare.com</span><span>71 ms</span><em class="warning">差异</em></div><div class="cc-row cols-dns"><strong>Google</strong><span>DoH</span><span>104.16.132.229 · 2606:4700::</span><span>-- · cloudflare.com</span><span>86 ms</span><em>正常</em></div></div></section>
+                <div class="cc-split"><section class="cc-section"><div class="cc-section-head"><strong>诊断结论</strong><span>FINDINGS</span></div><div class="cc-note-list"><article><strong>解析结果形成两个地址组</strong><p>差异符合 CDN 就近调度特征，当前没有直接证据表明存在 DNS 污染。</p></article><article><strong>本地系统 DNS 响应最快</strong><p>平均耗时 38 ms，所有解析通道均可达。</p></article></div></section><section class="cc-section"><div class="cc-section-head"><strong>治理动作</strong><span>REMEDIATION</span></div><div class="cc-note-list"><article><strong>使用实际连接验证调度质量</strong><p>对两个地址组分别执行 TLS 与 TTFB 测试。</p><button class="toast-trigger">发送到 CDN 优选 →</button></article></div></section></div>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="ports">
+                <div class="command-toolbar three"><label class="cc-field"><span>目标主机或 URL</span><input class="cc-input" value="www.cloudflare.com"></label><label class="cc-field"><span>端口列表</span><input class="cc-input" value="80, 443, 8443"></label><button class="cc-button run-demo">检测端口</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>常用端口</strong><span>仅检测明确选择的端口，不扫描网段</span></div><div class="cc-preset-list"><button>22 SSH</button><button>53 DNS</button><button class="active">80 HTTP</button><button class="active">443 HTTPS</button><button>3306 MySQL</button><button>5432 PostgreSQL</button><button>6379 Redis</button><button class="active">8443 HTTPS</button></div></section>
+                <section class="cc-section"><div class="cc-section-head"><strong>协议可达性</strong><span>2 OPEN · 1 TIMEOUT</span></div><div class="cc-metrics"><div><span>已开放</span><strong>2</strong></div><div><span>明确拒绝</span><strong>0</strong></div><div><span>静默超时</span><strong>1</strong></div><div><span>解析地址</span><strong>2</strong></div><div><span>平均连接</span><strong>43 ms</strong></div></div><div class="cc-table"><div class="cc-row head cols-port"><span>端口</span><span>服务</span><span>连接地址</span><span>TCP</span><span>协议</span><span>TLS / ALPN</span><span>状态</span></div><div class="cc-row cols-port"><strong>80</strong><span>HTTP</span><span>104.16.132.229</span><span>41 ms</span><span>HTTP/1.1</span><span>--</span><em>开放</em></div><div class="cc-row cols-port"><strong>443</strong><span>HTTPS</span><span>104.16.132.229</span><span>42 ms</span><span>HTTP/2</span><span>TLS 1.3 · h2</span><em>开放</em></div><div class="cc-row cols-port"><strong>8443</strong><span>HTTPS ALT</span><span>104.16.132.229</span><span>3000 ms</span><span>--</span><span>--</span><em class="warning">超时</em></div></div></section>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="monitor">
+                <div class="command-toolbar"><label class="cc-field"><span>监控目标</span><input class="cc-input" value="www.cloudflare.com"></label><label class="cc-field"><span>测试时长</span><select class="cc-select"><option>30 秒</option><option>2 分钟</option><option>5 分钟</option></select></label><label class="cc-field"><span>采样 / 延迟阈值</span><select class="cc-select"><option>1 秒 / 500 ms</option><option>2 秒 / 1000 ms</option></select></label><button class="cc-button run-demo">开始监控</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>延迟稳定性曲线</strong><span>30 / 30 SAMPLES · COMPLETED</span></div><div class="cc-metrics"><div><span>成功率</span><strong>96.7%</strong></div><div><span>平均耗时</span><strong>318 ms</strong></div><div><span>P95</span><strong>612 ms</strong></div><div><span>抖动</span><strong>84 ms</strong></div><div><span>异常事件</span><strong>2</strong></div></div><div class="cc-chart"><canvas id="command-monitor-chart" aria-label="持续监控延迟曲线"></canvas></div></section>
+                <section class="cc-section"><div class="cc-section-head"><strong>异常事件</strong><span>FAILURE / THRESHOLD / PATH CHANGE</span></div><div class="cc-event"><time>14:31:46</time><span class="tag warning">延迟超限</span><span>采样耗时 612 ms，超过设定阈值 500 ms</span></div><div class="cc-event"><time>14:31:52</time><span class="tag warning">请求失败</span><span>系统代理路径发生一次 TLS 超时，下一采样恢复</span></div></section>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="patrol">
+                <div class="command-toolbar two"><label class="cc-field"><span>并发与连接策略</span><select class="cc-select"><option>6 路并发 · 系统代理</option><option>4 路并发 · 强制直连</option></select></label><button class="cc-button run-demo">巡检选中站点</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>巡检目标</strong><span id="site-selected-count">6 / 8 SELECTED</span></div><div class="site-selector"><button class="active">百度</button><button class="active">GitHub</button><button class="active">Cloudflare</button><button class="active">Bilibili</button><button class="active">Microsoft</button><button class="active">Google</button><button>淘宝</button><button>自定义站点</button></div></section>
+                <section class="cc-section"><div class="cc-section-head"><strong>站点可用性</strong><span>5 HEALTHY · 1 SLOW</span></div><div class="cc-table"><div class="cc-row head cols-patrol"><span>站点</span><span>最终地址</span><span>DNS</span><span>TTFB</span><span>总耗时</span><span>状态</span></div><div class="cc-row cols-patrol"><strong>百度</strong><span>www.baidu.com</span><span>21 ms</span><span>96 ms</span><span>148 ms</span><em>正常</em></div><div class="cc-row cols-patrol"><strong>GitHub</strong><span>github.com</span><span>42 ms</span><span>412 ms</span><span>588 ms</span><em class="warning">较慢</em></div><div class="cc-row cols-patrol"><strong>Cloudflare</strong><span>www.cloudflare.com</span><span>38 ms</span><span>188 ms</span><span>306 ms</span><em>正常</em></div><div class="cc-row cols-patrol"><strong>Microsoft</strong><span>www.microsoft.com</span><span>29 ms</span><span>122 ms</span><span>204 ms</span><em>正常</em></div></div></section>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="cdn">
+                <div class="command-toolbar"><label class="cc-field"><span>Cloudflare 域名</span><input class="cc-input" value="www.cloudflare.com"></label><label class="cc-field"><span>测试路径</span><input class="cc-input" value="/"></label><label class="cc-field"><span>采样 / 并发</span><select class="cc-select"><option>3 次 / 4 并发</option><option>5 次 / 6 并发</option></select></label><button class="cc-button run-demo">测试候选 IP</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>候选地址</strong><div class="cc-section-actions"><button class="toast-trigger">导入 TXT / CSV</button><button class="active">DNS 基线已加入</button></div></div><div style="padding:14px"><textarea class="cc-textarea">104.16.132.229&#10;104.16.133.229&#10;172.67.72.14&#10;2606:4700::6810:84e5</textarea></div></section>
+                <section class="cc-section"><div class="cc-section-head"><strong>候选性能排名</strong><span>CF-RAY VERIFIED · 4 / 4</span></div><div class="cc-metrics"><div><span>DNS 基线</span><strong>306 ms</strong></div><div><span>推荐 IP</span><strong>104.16.133.229</strong></div><div><span>P50 改善</span><strong>31%</strong></div><div><span>推荐 P95</span><strong>241 ms</strong></div><div><span>置信度</span><strong>高</strong></div></div><div class="cc-table"><div class="cc-row head cols-cdn"><span>排名</span><span>候选 IP</span><span>成功率</span><span>TCP</span><span>TLS</span><span>TTFB</span><span>P50 / P95</span><span>CF 节点</span></div><div class="cc-row cols-cdn"><strong>01</strong><span>104.16.133.229</span><span>100%</span><span>39 ms</span><span>43 ms</span><span>111 ms</span><span>211 / 241 ms</span><em>HKG</em></div><div class="cc-row cols-cdn"><strong>02</strong><span>104.16.132.229</span><span>100%</span><span>42 ms</span><span>46 ms</span><span>188 ms</span><span>306 / 338 ms</span><em>HKG</em></div><div class="cc-row cols-cdn"><strong>03</strong><span>172.67.72.14</span><span>66.7%</span><span>78 ms</span><span>81 ms</span><span>264 ms</span><span>451 / 918 ms</span><em class="warning">SJC</em></div></div></section>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="baseline">
+                <div class="command-toolbar two"><label class="cc-field"><span>参考域名</span><input class="cc-input" value="www.cloudflare.com"></label><button class="cc-button run-demo">检测网络基线</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>本地环境分层状态</strong><span>COMPLETED · 1.42s</span></div><div class="baseline-grid"><article class="baseline-card"><span>LOCAL</span><strong>以太网接口正常</strong><p>eth0 · 192.168.1.8 · MTU 1500</p></article><article class="baseline-card"><span>ROUTE</span><strong>默认路由已确认</strong><p>0.0.0.0/0 via 192.168.1.1</p></article><article class="baseline-card"><span>EGRESS</span><strong>IPv4 公网可达</strong><p>118.***.24.18 · IPv6 可用</p></article><article class="baseline-card"><span>PROXY</span><strong>发现本地代理</strong><p>HTTP · 127.0.0.1:7890</p></article></div></section>
+                <div class="cc-split"><section class="cc-section"><div class="cc-section-head"><strong>接口与路由绑定</strong><span>ROUTE / STACK</span></div><div class="cc-table"><div class="cc-row head cols-dns"><span>接口</span><span>类型</span><span>地址</span><span>网关</span><span>MTU</span><span>状态</span></div><div class="cc-row cols-dns"><strong>eth0</strong><span>Ethernet</span><span>192.168.1.8/24</span><span>192.168.1.1</span><span>1500</span><em>活动</em></div><div class="cc-row cols-dns"><strong>tun0</strong><span>TUN</span><span>198.18.0.1/16</span><span>--</span><span>9000</span><em class="warning">虚拟</em></div></div></section><section class="cc-section"><div class="cc-section-head"><strong>本地代理证据</strong><span>LISTENERS</span></div><div class="cc-note-list"><article><strong>127.0.0.1:7890</strong><p>HTTP / SOCKS5 握手成功，系统代理配置指向此端点。</p></article><article><strong>联合归因</strong><p>公网访问可能经由 TUN 与本地代理共同接管。</p></article></div></section></div>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="paths">
+                <div class="command-toolbar"><label class="cc-field"><span>目标域名或 URL</span><input class="cc-input" value="www.cloudflare.com"></label><label class="cc-field"><span>手动代理</span><input class="cc-input" value="127.0.0.1:7890"></label><label class="cc-field"><span>每路径采样</span><select class="cc-select"><option>3 次</option><option>5 次</option></select></label><button class="cc-button run-demo">开始路径对照</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>路径决策</strong><span>DIRECT RECOMMENDED · 55% FASTER</span></div><div class="path-cards"><article class="path-card"><span>SYSTEM PROXY</span><strong>677 ms</strong><p>100% 成功 · 抖动 94 ms</p></article><article class="path-card best"><span>DIRECT · RECOMMENDED</span><strong>306 ms</strong><p>100% 成功 · 抖动 18 ms</p></article><article class="path-card"><span>MANUAL PROXY</span><strong>642 ms</strong><p>100% 成功 · 抖动 77 ms</p></article></div><div class="cc-table"><div class="cc-row head cols-path"><span>路径</span><span>实际出口</span><span>成功率</span><span>TCP P50</span><span>TLS P50</span><span>TTFB P50</span><span>总耗时 P50</span></div><div class="cc-row cols-path"><strong>系统代理</strong><span>127.0.0.1:7890</span><span>100%</span><span>72 ms</span><span>88 ms</span><span>401 ms</span><span>677 ms</span></div><div class="cc-row cols-path"><strong>强制直连</strong><span>DIRECT</span><span>100%</span><span>42 ms</span><span>46 ms</span><span>188 ms</span><em>306 ms</em></div><div class="cc-row cols-path"><strong>手动代理</strong><span>127.0.0.1:7890</span><span>100%</span><span>68 ms</span><span>82 ms</span><span>384 ms</span><span>642 ms</span></div></div></section>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="history">
+                <div class="command-toolbar"><label class="cc-field"><span>记录类型</span><select class="cc-select"><option>全部诊断</option><option>综合诊断</option><option>路径对照</option></select></label><label class="cc-field"><span>目标筛选</span><input class="cc-input" placeholder="域名或 URL"></label><label class="cc-field"><span>时间范围</span><select class="cc-select"><option>最近 30 天</option><option>最近 7 天</option><option>全部时间</option></select></label><button class="cc-button secondary toast-trigger">导出报告</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>检测历史</strong><div class="cc-section-actions"><span id="history-selection">已选择 0 / 2</span><button id="history-compare-button" disabled>对比选中项</button></div></div><div class="cc-table"><div class="cc-row head cols-history"><span></span><span>检测时间</span><span>目标</span><span>连接策略</span><span>关键指标</span><span>结论</span></div><label class="cc-row cols-history"><input class="history-check" type="checkbox"><span>10-22 14:32</span><strong>www.cloudflare.com</strong><span>强制直连</span><span>306 ms · HKG</span><em>需关注</em></label><label class="cc-row cols-history"><input class="history-check" type="checkbox"><span>10-21 19:08</span><strong>www.cloudflare.com</strong><span>系统代理</span><span>677 ms · HKG</span><em class="warning">较慢</em></label><label class="cc-row cols-history"><input class="history-check" type="checkbox"><span>10-20 09:16</span><strong>github.com</strong><span>系统代理</span><span>588 ms · NRT</span><em>可用</em></label></div><div class="history-compare" id="history-compare"><div><span>总耗时</span><strong>-54.8%</strong><small>677 → 306 ms</small></div><div><span>TCP</span><strong>-41.7%</strong><small>72 → 42 ms</small></div><div><span>TTFB</span><strong>-53.1%</strong><small>401 → 188 ms</small></div><div><span>抖动</span><strong>-80.9%</strong><small>94 → 18 ms</small></div></div></section>
+            </section>
+
+            <section class="command-content-panel" data-command-panel="trends">
+                <div class="command-toolbar"><label class="cc-field"><span>分析目标</span><select class="cc-select"><option>www.cloudflare.com</option><option>github.com</option><option>全部目标</option></select></label><label class="cc-field"><span>趋势指标</span><select class="cc-select"><option>端到端耗时</option><option>TTFB</option><option>成功率</option><option>抖动</option></select></label><label class="cc-field"><span>时间范围</span><select class="cc-select"><option>最近 30 天</option><option>最近 7 天</option><option>全部时间</option></select></label><button class="cc-button secondary toast-trigger">生成趋势报告</button></div>
+                <section class="cc-section"><div class="cc-section-head"><strong>治理效果摘要</strong><span>12 RECORDS · 2 GOVERNANCE EVENTS</span></div><div class="cc-metrics"><div><span>当前 P50</span><strong>306 ms</strong><small>最近 3 次检测</small></div><div><span>治理前 P50</span><strong>672 ms</strong><small>代理路径</small></div><div><span>总体改善</span><strong style="color:#55d596">54.5%</strong><small>耗时下降</small></div><div><span>成功率</span><strong>100%</strong><small>+3.3%</small></div><div><span>最佳路径</span><strong>DIRECT</strong><small>强制直连</small></div></div></section>
+                <div class="trend-layout">
+                    <section class="cc-section"><div class="cc-section-head"><strong>端到端耗时趋势</strong><span>P50 · MILLISECONDS</span></div><div class="trend-chart"><div class="trend-column"><i style="height:76%"></i><span>10/12</span></div><div class="trend-column"><i style="height:82%"></i><span>10/14</span></div><div class="trend-column"><i style="height:73%"></i><span>10/16</span></div><div class="trend-column"><i style="height:88%"></i><span>10/18</span></div><div class="trend-column improved"><i style="height:48%"></i><span>10/20</span></div><div class="trend-column improved"><i style="height:41%"></i><span>10/21</span></div><div class="trend-column improved"><i style="height:38%"></i><span>10/22</span></div></div><div class="trend-legend"><span>治理前 · 系统代理</span><span>治理后 · 强制直连</span></div></section>
+                    <section class="cc-section"><div class="cc-section-head"><strong>趋势结论</strong><span>ANALYSIS</span></div><div class="cc-note-list"><article><strong>路径治理效果稳定</strong><p>切换为强制直连后，最近三次检测的 P50 均低于 330 ms。</p></article><article><strong>DNS 差异仍然存在</strong><p>边缘地址组保持为 2 组，但没有继续造成明显的响应波动。</p></article><article><strong>建议保持观察</strong><p>继续监测 7 天，确认代理规则变化不会重新接管目标流量。</p><button class="toast-trigger">创建持续监控 →</button></article></div></section>
+                </div>
+            </section>
+        </main>
+    </div>
+</section>
+
+<section class="prototype report-center" data-view="report">
+    <header class="app-header">
+        <div class="brand"><span class="brand-mark"><i></i><i></i><i></i></span><div><strong>ATNetool</strong><small>NETWORK ASSISTANT</small></div></div>
+        <div class="report-actions"><button class="secondary toast-trigger">复制报告</button><button class="primary run-demo">重新诊断</button></div>
+    </header>
+    <div class="report-shell">
+        <aside class="report-outline"><strong>报告目录</strong><button class="active">诊断摘要</button><button>问题与治理</button><button>链路证据</button><button>原始数据</button><div class="report-meta">报告 ID<br><span class="mono">ND-20261021-1432</span><br><br>仅保存在本地</div></aside>
+        <main class="report-paper">
+            <section class="report-cover">
+                <span class="report-kicker">DIAGNOSIS SUMMARY · 2026-10-21 14:32</span>
+                <h1>主要问题可能位于 DNS 调度与本地代理路径</h1>
+                <p>目标服务可正常访问，TLS 与 HTTP 响应没有发现故障。强制直连路径比系统代理快 55%，同时多个 DNS 解析器返回了不同的边缘节点。</p>
+                <div class="report-facts"><div><span>目标</span><strong>www.cloudflare.com</strong></div><div><span>综合状态</span><strong>需要关注</strong></div><div><span>端到端耗时</span><strong>306 ms</strong></div><div><span>异常 / 提示</span><strong>2 / 3</strong></div></div>
+            </section>
+            <section class="report-content">
+                <div class="report-section-title"><h2>问题与建议</h2><span>按预期影响排序</span></div>
+                <article class="issue">
+                    <div class="issue-head"><span class="issue-index">01</span><div><h3>DNS 解析结果存在差异</h3><p>系统 DNS 与公共 DoH 返回不同边缘地址，可能造成节点调度和访问延迟波动。</p></div><span class="tag warning">中等影响</span></div>
+                    <div class="issue-body"><div class="evidence-box"><strong>检测证据</strong><p>4 个解析器中有 2 个返回不同结果，系统 DNS 耗时 38 ms。</p><button class="open-drawer">查看全部解析记录 →</button></div><div class="treatment-box"><strong>建议治理</strong><p>分别使用系统 DNS 与公共 DoH 复测，保留稳定且可用的解析来源。</p><button class="toast-trigger">开始 DNS 深度诊断 →</button></div></div>
+                </article>
+                <article class="issue">
+                    <div class="issue-head"><span class="issue-index">02</span><div><h3>系统代理路径响应较慢</h3><p>同一目标在系统代理路径下耗时 677 ms，强制直连耗时 306 ms。</p></div><span class="tag warning">中等影响</span></div>
+                    <div class="issue-body"><div class="evidence-box"><strong>检测证据</strong><p>代理端点为 127.0.0.1:7890；TLS、HTTP 状态均正常，仅链路耗时明显增加。</p><button class="open-drawer">查看路径对比 →</button></div><div class="treatment-box"><strong>建议治理</strong><p>检查本地代理节点与规则，确认目标域名是否需要经过代理。</p><button class="toast-trigger">重新运行路径对照 →</button></div></div>
+                </article>
+                <article class="issue">
+                    <div class="issue-head"><span class="issue-index">03</span><div><h3>目标服务与加密连接正常</h3><p>TLS 1.3 握手成功，证书链有效，HTTP/2 返回 200，Cloudflare 节点为 HKG。</p></div><span class="tag healthy">正常</span></div>
+                </article>
+                <div class="raw-details"><button id="raw-toggle" type="button"><span>原始诊断数据</span><span id="raw-symbol">＋</span></button><div class="raw-panel" id="raw-panel" hidden>DNS   38ms   TCP   42ms   TLS   46ms<br>TTFB  188ms  TOTAL 306ms HTTP  200<br>CF-RAY  9b5e7c23f118-HKG<br>ROUTE   192.168.1.1 → 10.22.0.1 → 104.16.132.229</div></div>
+            </section>
+        </main>
+    </div>
+</section>
+
+<div class="drawer-backdrop" id="drawer-backdrop"></div>
+<aside class="detail-drawer" id="detail-drawer" aria-hidden="true">
+    <div class="drawer-head"><h2>DNS 解析证据</h2><button class="drawer-close" id="drawer-close" type="button" aria-label="关闭">×</button></div>
+    <p>不同解析出口可能获得不同的 CDN 边缘地址。结果差异不一定代表故障，需要结合最终连接耗时判断。</p>
+    <div class="detail-table"><div><span>系统 DNS</span><strong>104.16.132.229 · 38 ms</strong></div><div><span>Cloudflare DoH</span><strong>104.16.133.229 · 71 ms</strong></div><div><span>Google DoH</span><strong>104.16.132.229 · 86 ms</strong></div><div><span>AliDNS</span><strong>104.16.133.229 · 44 ms</strong></div><div><span>一致性</span><strong>2 / 4 · 存在差异</strong></div></div>
+    <button class="primary toast-trigger" style="margin-top:auto">使用该条件重新检测</button>
+</aside>
+<div class="toast" id="toast">操作已加入诊断队列</div>
+
+<script>
+    const root = document.documentElement;
+    const switchers = [...document.querySelectorAll('[data-prototype]')];
+    const views = [...document.querySelectorAll('[data-view]')];
+    const toast = document.querySelector('#toast');
+    const drawer = document.querySelector('#detail-drawer');
+    const backdrop = document.querySelector('#drawer-backdrop');
+
+    switchers.forEach((button) => button.addEventListener('click', () => {
+        switchers.forEach((item) => item.classList.toggle('active', item === button));
+        views.forEach((view) => view.classList.toggle('active', view.dataset.view === button.dataset.prototype));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }));
+
+    document.querySelector('#theme-toggle').addEventListener('click', () => {
+        root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    });
+
+    document.querySelectorAll('[data-segments]').forEach((group) => {
+        group.querySelectorAll('button').forEach((button) => button.addEventListener('click', () => {
+            group.querySelectorAll('button').forEach((item) => item.classList.toggle('active', item === button));
+        }));
+    });
+
+    function showToast(message = '操作已加入诊断队列') {
+        toast.textContent = message;
+        toast.classList.add('show');
+        window.clearTimeout(showToast.timer);
+        showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    document.querySelectorAll('.toast-trigger').forEach((button) => button.addEventListener('click', () => showToast()));
+
+    document.querySelectorAll('.run-demo').forEach((button) => button.addEventListener('click', () => {
+        const original = button.textContent;
+        button.disabled = true;
+        button.textContent = '正在采集网络证据';
+        button.classList.add('running-label');
+        window.setTimeout(() => {
+            button.disabled = false;
+            button.textContent = original;
+            button.classList.remove('running-label');
+            showToast('诊断完成，结果已刷新');
+        }, 1600);
+    }));
+
+    function setDrawer(open) {
+        drawer.classList.toggle('open', open);
+        backdrop.classList.toggle('open', open);
+        drawer.setAttribute('aria-hidden', String(!open));
+    }
+
+    document.querySelectorAll('.open-drawer').forEach((button) => button.addEventListener('click', () => setDrawer(true)));
+    document.querySelector('#drawer-close').addEventListener('click', () => setDrawer(false));
+    backdrop.addEventListener('click', () => setDrawer(false));
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setDrawer(false); });
+
+    document.querySelector('#raw-toggle').addEventListener('click', () => {
+        const panel = document.querySelector('#raw-panel');
+        panel.hidden = !panel.hidden;
+        document.querySelector('#raw-symbol').textContent = panel.hidden ? '＋' : '－';
+    });
+
+    const commandLabels = {
+        integrated: '重新扫描', domain: '运行诊断', dns: '运行 DNS 诊断', ports: '检测端口',
+        monitor: '开始监控', patrol: '开始巡检', cdn: '测试候选', baseline: '检测基线',
+        paths: '路径对照', history: '刷新记录', trends: '生成报告'
+    };
+
+    const commandGroups = {
+        diagnosis: [
+            { module: 'integrated', label: '综合总览', title: '诊断中心 · 综合总览', subtitle: '一次采集本地网络、DNS、端口、服务链路与代理路径' },
+            { module: 'domain', label: '链路证据', title: '诊断中心 · 链路证据', subtitle: 'HTTP、TLS、Cloudflare 与 Traceroute' },
+            { module: 'dns', label: 'DNS 分析', title: '诊断中心 · DNS 分析', subtitle: '系统 DNS、公共 UDP 与 DoH 解析证据对照' },
+            { module: 'ports', label: '端口协议', title: '诊断中心 · 端口协议', subtitle: '指定端口的 TCP、TLS 与应用协议验证' },
+            { module: 'baseline', label: '本地环境', title: '诊断中心 · 本地环境', subtitle: '接口、默认路由、DNS、出口与代理环境' }
+        ],
+        monitoring: [
+            { module: 'monitor', label: '单目标监测', title: '网络监测 · 单目标', subtitle: '持续观察延迟、失败率、抖动和路径变化' },
+            { module: 'patrol', label: '多站点巡检', title: '网络监测 · 多站点', subtitle: '批量验证常用网站的可用性与访问质量' }
+        ],
+        governance: [
+            { module: 'paths', label: '连接策略', title: '优化治理 · 连接策略', subtitle: '系统代理、强制直连与手动代理 A/B 验证' },
+            { module: 'cdn', label: 'CDN 节点', title: '优化治理 · CDN 节点', subtitle: 'Cloudflare 候选 IP 性能排序与治理验证' }
+        ],
+        records: [
+            { module: 'history', label: '检测记录', title: '历史报告 · 检测记录', subtitle: '本地保存的诊断结果与治理前后对比' },
+            { module: 'trends', label: '趋势分析', title: '历史报告 · 趋势分析', subtitle: '观察长期性能变化并验证治理效果' }
+        ]
+    };
+
+    const commandGroupNav = [...document.querySelectorAll('[data-command-group]')];
+    const commandPanels = [...document.querySelectorAll('[data-command-panel]')];
+    const commandSubnav = document.querySelector('#command-subnav');
+
+    function openCommandModule(entry, tabButton) {
+        commandSubnav.querySelectorAll('button').forEach((item) => item.classList.toggle('active', item === tabButton));
+        commandPanels.forEach((panel) => panel.classList.toggle('active', panel.dataset.commandPanel === entry.module));
+        document.querySelector('#command-title').textContent = entry.title;
+        document.querySelector('#command-subtitle').textContent = entry.subtitle;
+        document.querySelector('#command-run').textContent = commandLabels[entry.module];
+        document.querySelector('#command-state').textContent = entry.module === 'monitor' ? '监控就绪' : entry.module === 'history' || entry.module === 'trends' ? '本地记录' : '引擎就绪';
+        if (entry.module === 'monitor') requestAnimationFrame(drawMonitorChart);
+    }
+
+    function renderCommandGroup(group) {
+        commandGroupNav.forEach((item) => item.classList.toggle('active', item.dataset.commandGroup === group));
+        commandSubnav.replaceChildren();
+        commandGroups[group].forEach((entry, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.commandModule = entry.module;
+            button.textContent = entry.label;
+            button.addEventListener('click', () => openCommandModule(entry, button));
+            commandSubnav.append(button);
+            if (index === 0) openCommandModule(entry, button);
+        });
+        document.querySelector('[data-view="command"]').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    commandGroupNav.forEach((button) => button.addEventListener('click', () => renderCommandGroup(button.dataset.commandGroup)));
+    renderCommandGroup('diagnosis');
+
+    document.querySelectorAll('[data-domain-view]').forEach((button) => button.addEventListener('click', () => {
+        const mode = button.dataset.domainView;
+        document.querySelectorAll('[data-domain-view]').forEach((item) => item.classList.toggle('active', item === button));
+        document.querySelectorAll('[data-domain-content]').forEach((content) => { content.hidden = content.dataset.domainContent !== mode; });
+    }));
+
+    document.querySelectorAll('.cc-preset-list button').forEach((button) => button.addEventListener('click', () => button.classList.toggle('active')));
+
+    const siteButtons = [...document.querySelectorAll('.site-selector button')];
+    siteButtons.forEach((button) => button.addEventListener('click', () => {
+        button.classList.toggle('active');
+        document.querySelector('#site-selected-count').textContent = `${siteButtons.filter((item) => item.classList.contains('active')).length} / ${siteButtons.length} SELECTED`;
+    }));
+
+    const historyChecks = [...document.querySelectorAll('.history-check')];
+    const historyButton = document.querySelector('#history-compare-button');
+    historyChecks.forEach((checkbox) => checkbox.addEventListener('change', () => {
+        const selected = historyChecks.filter((item) => item.checked);
+        if (selected.length > 2) {
+            checkbox.checked = false;
+            showToast('最多选择两条记录进行对比');
+        }
+        const count = historyChecks.filter((item) => item.checked).length;
+        document.querySelector('#history-selection').textContent = `已选择 ${count} / 2`;
+        historyButton.disabled = count !== 2;
+        if (count !== 2) document.querySelector('#history-compare').classList.remove('open');
+    }));
+    historyButton.addEventListener('click', () => {
+        document.querySelector('#history-compare').classList.toggle('open');
+        historyButton.textContent = document.querySelector('#history-compare').classList.contains('open') ? '收起对比' : '对比选中项';
+    });
+
+    function drawMonitorChart() {
+        const canvas = document.querySelector('#command-monitor-chart');
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.round(rect.width * ratio);
+        canvas.height = Math.round(rect.height * ratio);
+        const context = canvas.getContext('2d');
+        context.scale(ratio, ratio);
+        const values = [276, 289, 281, 305, 298, 317, 292, 308, 612, 341, 319, 301, 286, 312, 329, 304, 296, 288, 321, 347, 303, 291, 308, 325, 316, 298, 304, 287, 312, 299];
+        const min = 240;
+        const max = 650;
+        context.lineWidth = 2;
+        context.strokeStyle = '#55d4db';
+        context.beginPath();
+        values.forEach((value, index) => {
+            const x = 3 + index * ((rect.width - 6) / (values.length - 1));
+            const y = rect.height - 3 - ((value - min) / (max - min)) * (rect.height - 6);
+            if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
+        });
+        context.stroke();
+        const spike = 8;
+        const x = 3 + spike * ((rect.width - 6) / (values.length - 1));
+        const y = rect.height - 3 - ((values[spike] - min) / (max - min)) * (rect.height - 6);
+        context.fillStyle = '#e5b45c';
+        context.beginPath();
+        context.arc(x, y, 5, 0, Math.PI * 2);
+        context.fill();
+    }
+    window.addEventListener('resize', () => {
+        if (document.querySelector('[data-command-panel="monitor"]').classList.contains('active')) drawMonitorChart();
+    });
+
+    document.querySelectorAll('.workbench-nav button, .report-outline button').forEach((button) => {
+        button.addEventListener('click', () => {
+            const group = button.parentElement;
+            group.querySelectorAll('button').forEach((item) => item.classList.toggle('active', item === button));
+        });
+    });
+</script>
+</body>
+</html>

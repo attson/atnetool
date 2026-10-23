@@ -1,0 +1,799 @@
+const LOCALE_KEY = 'atnetool.locale';
+const SUPPORTED_LOCALES = new Set(['zh-CN', 'en-US']);
+const TRANSLATED_ATTRIBUTES = ['aria-label', 'title', 'data-tooltip', 'placeholder'];
+
+// Chinese remains the authoring language so existing diagnostic renderers can
+// keep producing one canonical message. The UI layer translates both initial
+// markup and content inserted while a task is running.
+const EN = {
+  '诊断中心 · 综合总览': 'Diagnostics · Overview',
+  '一次采集本地网络、DNS、端口、服务链路与代理路径': 'Inspect local network, DNS, ports, service route, and proxy path in one run',
+  '诊断中心 · 单目标': 'Diagnostics · Single Target',
+  '诊断中心 · 链路证据': 'Diagnostics · Route Evidence',
+  '诊断中心 · DNS 分析': 'Diagnostics · DNS Analysis',
+  '诊断中心 · 端口协议': 'Diagnostics · Ports & Protocols',
+  '诊断中心 · 本地环境': 'Diagnostics · Local Environment',
+  '网络监测 · 持续监控': 'Monitoring · Continuous Test',
+  '网络监测 · 单目标': 'Monitoring · Single Target',
+  '网络监测 · 多站点': 'Monitoring · Site Patrol',
+  '优化治理 · CF IP 优选': 'Optimization · CF IP Selection',
+  '优化治理 · CDN 节点': 'Optimization · CDN Nodes',
+  '优化治理 · 网络基线': 'Optimization · Network Baseline',
+  '优化治理 · 连接策略': 'Optimization · Connection Strategy',
+  '历史报告 · 检测记录': 'Reports · Test History',
+  '历史报告 · 趋势分析': 'Reports · Trends',
+  '一次完成 DNS、端口、本地环境、服务链路与代理路径诊断': 'Run DNS, port, local environment, service route, and proxy checks together',
+  '使用 HTTP、TLS 与 Traceroute 定位指定目标的访问问题': 'Locate access issues with HTTP, TLS, and traceroute evidence',
+  'HTTP、TLS、Cloudflare 与 Traceroute': 'HTTP, TLS, Cloudflare, and Traceroute',
+  '系统 DNS、公共 UDP 与 DoH 解析证据对照': 'Compare system DNS, public UDP DNS, and DoH evidence',
+  '指定端口的 TCP、TLS 与应用协议验证': 'Verify TCP, TLS, and application protocols on selected ports',
+  '连续采样目标延迟、可用率与路径变化': 'Continuously sample latency, availability, and route changes',
+  '批量验证常用网站的可用性与访问质量': 'Validate availability and access quality across common sites',
+  '基于当前 DNS 候选验证 Cloudflare 边缘质量': 'Validate Cloudflare edge quality using current DNS candidates',
+  '识别本地出口、协议栈、解析器与代理监听': 'Identify local egress, IP stack, resolvers, and proxy listeners',
+  '接口、默认路由、DNS、出口与代理环境': 'Interfaces, default routes, DNS, egress, and proxy environment',
+  '持续观察延迟、失败率、抖动和路径变化': 'Continuously observe latency, failure rate, jitter, and route changes',
+  'Cloudflare 候选 IP 性能排序与治理验证': 'Rank Cloudflare candidate IPs and verify optimization results',
+  '网段发现、延迟丢包筛选与下载测速': 'CIDR discovery, latency and loss filtering, and download testing',
+  '系统代理、强制直连与手动代理 A/B 验证': 'Compare system proxy, direct connection, and manual proxy',
+  '本地保存的诊断结果与治理前后对比': 'Review locally saved results and before/after comparisons',
+  '观察同一目标的长期性能变化与治理效果': 'Track long-term performance and optimization results for one target',
+
+  '产品模块': 'Product modules',
+  '模块视图': 'Module views',
+  '诊断中心': 'Diagnostics',
+  '网络监测': 'Monitoring',
+  '优化治理': 'Optimization',
+  '历史报告': 'Reports',
+  '综合总览': 'Overview',
+  '链路证据': 'Route Evidence',
+  '综合诊断': 'Full Diagnosis',
+  '单目标诊断': 'Single Target',
+  '单目标监测': 'Single Target',
+  'DNS 分析': 'DNS Analysis',
+  '端口协议': 'Ports & Protocols',
+  '持续监控': 'Continuous Test',
+  '持续网络监控': 'Continuous Monitoring',
+  '多站点巡检': 'Site Patrol',
+  '站点巡检': 'Site Patrol',
+  'CF IP 优选': 'CF IP Selection',
+  'Cloudflare IP 优选': 'Cloudflare IP Selection',
+  'CDN 节点': 'CDN Nodes',
+  '网络基线': 'Network Baseline',
+  '连接策略': 'Connection Strategy',
+  '路径对照': 'Path Comparison',
+  '检测记录': 'Test History',
+  '检测历史': 'Test History',
+  '趋势分析': 'Trend Analysis',
+  '性能趋势': 'Performance Trends',
+
+  '目标域名或 URL': 'Target domain or URL',
+  '目标主机或 URL': 'Target host or URL',
+  '诊断域名': 'Domain to diagnose',
+  '参考域名': 'Reference domain',
+  'Cloudflare 域名': 'Cloudflare domain',
+  '请求协议': 'Request protocol',
+  '代理端点': 'Proxy endpoint',
+  '代理地址': 'Proxy address',
+  '自动代理': 'System proxy',
+  '系统代理': 'System proxy',
+  '强制直连': 'Force direct',
+  '绕过代理': 'Bypass proxy',
+  '手动代理': 'Manual proxy',
+  '巡检连接策略': 'Patrol connection strategy',
+  '支持 HTTP、HTTPS 和 SOCKS5': 'Supports HTTP, HTTPS, and SOCKS5',
+  '综合诊断说明': 'Full diagnosis details',
+  '并行检查本地网络、DNS、80/443 端口、HTTP/TLS/Traceroute 与代理路径，结果按故障层级给出处置顺序。': 'Checks the local network, DNS, ports 80/443, HTTP/TLS/traceroute, and proxy paths in parallel, then prioritizes remediation by fault layer.',
+  '运行综合诊断': 'Run Full Diagnosis',
+  '运行完整诊断': 'Run Full Diagnosis',
+  '重新诊断': 'Run Again',
+  '停止检测': 'Stop Test',
+  '停止测试': 'Stop Test',
+  '正在停止…': 'Stopping…',
+
+  '诊断状态': 'Status',
+  '等待诊断任务': 'Waiting for a diagnostic run',
+  '五个诊断模块将在同一任务中并行执行': 'Five diagnostic modules will run in parallel',
+  '未开始': 'Not started',
+  '本地网络': 'Local Network',
+  '解析链路': 'DNS Resolution',
+  '端口协议': 'Ports & Protocols',
+  '服务与路由': 'Service & Route',
+  '代理对照': 'Proxy Comparison',
+  '等待检测': 'Waiting',
+  '诊断结果': 'Diagnostic Result',
+  '等待结果': 'Waiting for results',
+  '分层结论': 'Layer Findings',
+  '治理顺序': 'Remediation Order',
+  '复制综合诊断报告': 'Copy Full Diagnosis Report',
+  '域名诊断': 'Domain Diagnosis',
+  '诊断总览': 'Diagnosis Overview',
+  '待检测': 'Waiting',
+  '运行后显示网络结论': 'Run a test to see the network findings',
+  '总耗时': 'Total Time',
+  '完整诊断进度': 'Full diagnosis progress',
+  '目标解析': 'Target Resolution',
+  '连接与代理': 'Connection & Proxy',
+  '服务请求': 'Service Request',
+  '路由追踪': 'Traceroute',
+  '域名解析': 'DNS Resolution',
+  '解析耗时': 'Resolution Time',
+  '连接路径': 'Connection Path',
+  '建连耗时': 'Connect Time',
+  '边缘与安全': 'Edge & Security',
+  '握手耗时': 'Handshake Time',
+  '服务响应': 'Service Response',
+  '首包 / 总耗时': 'TTFB / Total',
+  '等待完整诊断': 'Waiting for full diagnosis',
+  '诊断结论': 'Findings',
+  '处置建议': 'Recommendations',
+  '网络链路详情': 'Network Route',
+  '路由追踪说明': 'Traceroute details',
+  '地域链路': 'Route Map',
+  '原始跳点': 'Raw Hops',
+  '网络地域链路估算图': 'Estimated geographic network route',
+  '地图缩放控制': 'Map zoom controls',
+  '放大地图': 'Zoom in',
+  '缩小地图': 'Zoom out',
+  '无响应说明': 'No-response details',
+  'NO REPLY 只表示该跳点未响应探测，不等同于链路中断。': 'NO REPLY means only that the hop did not answer the probe; it does not indicate a broken route.',
+  '数字标记表示同一区域的多个跳点；橙色轮廓表示定位源存在偏差。GeoIP 仅用于估算公网跳点位置。': 'Numbered markers group hops in the same region. An orange outline indicates uncertain location data. GeoIP is only an estimate for public hops.',
+  '复制完整诊断报告': 'Copy Full Report',
+  '原始诊断数据': 'Raw Diagnostic Data',
+
+  'DNS 深度诊断': 'Deep DNS Diagnosis',
+  'DNS 诊断说明': 'DNS diagnosis details',
+  '对照系统 DNS、公共 UDP DNS 与 DoH。地址不同可能来自 CDN 调度，不会被直接判定为污染。': 'Compare system DNS, public UDP DNS, and DoH. Different addresses may result from CDN routing and are not automatically treated as DNS tampering.',
+  '运行 DNS 诊断': 'Run DNS Diagnosis',
+  '等待 DNS 检测': 'Waiting for DNS test',
+  'DNS 解析器证据矩阵': 'DNS Resolver Evidence',
+  '解析器': 'Resolver',
+  '耗时': 'Time',
+  '解析地址': 'Resolved Address',
+  '状态': 'Status',
+  '治理动作': 'Actions',
+  '完整 DNS 记录与 TTL': 'Full DNS Records & TTL',
+  '复制 DNS 诊断报告': 'Copy DNS Report',
+
+  '端口与协议可达性': 'Port & Protocol Reachability',
+  '端口检测说明': 'Port test details',
+  '仅检测当前填写主机与明确选择的端口，不扫描网段。关闭端口不一定是故障，应结合预期服务判断。': 'Tests only the entered host and explicitly selected ports; it does not scan networks. A closed port is not necessarily a fault—compare it with the expected service.',
+  '目标': 'Target',
+  '端口列表': 'Port list',
+  '常用端口': 'Common ports',
+  '检测端口': 'Test Ports',
+  '等待端口检测': 'Waiting for port test',
+  '端口与协议检测结果': 'Port & Protocol Results',
+  '端口': 'Port',
+  '协议': 'Protocol',
+  '服务': 'Service',
+  '复制端口检测报告': 'Copy Port Test Report',
+
+  '延迟阈值': 'Latency threshold',
+  '采样间隔': 'Sample interval',
+  '测试时长': 'Test duration',
+  '失败率阈值': 'Failure threshold',
+  '开始监控': 'Start Monitoring',
+  '等待监控': 'Waiting for monitoring',
+  '可用率': 'Availability',
+  '阈值超限': 'Above Threshold',
+  '异常事件': 'Incidents',
+  '路径变化': 'Route Changes',
+  '样本': 'Samples',
+  '异常与路径变化': 'Incidents & Route Changes',
+  '等待监控证据': 'Waiting for monitoring evidence',
+  '复制监控报告': 'Copy Monitoring Report',
+  '延迟稳定性曲线': 'Latency stability chart',
+  '按设定间隔执行小流量 HTTP 采样，聚合连续失败、延迟超限和路径变化；主动停止仍会保存已采集结果。': 'Runs lightweight HTTP samples at the selected interval and aggregates consecutive failures, latency breaches, and route changes. Collected samples are retained when stopped manually.',
+
+  '巡检说明': 'Patrol details',
+  '每个站点最多读取 4 KiB，最多 6 路并发。': 'Reads up to 4 KiB per site with at most 6 concurrent requests.',
+  '巡检目标': 'Patrol Targets',
+  '展开全部': 'Show All',
+  '收起': 'Collapse',
+  '并发数': 'Concurrency',
+  '站点名称': 'Site name',
+  '自定义站点名称': 'Custom site name',
+  '自定义站点 URL': 'Custom site URL',
+  '添加目标': 'Add Target',
+  '运行站点巡检': 'Run Site Patrol',
+  '等待巡检': 'Waiting for patrol',
+  '站点巡检结果': 'Site Patrol Results',
+  '站点': 'Site',
+  '复制巡检报告': 'Copy Patrol Report',
+  '移除目标': 'Remove target',
+
+  'Cloudflare IP 优选说明': 'Cloudflare IP selection details',
+  '按 CloudflareSpeedTest 流程执行候选发现、延迟与丢包筛选、可选下载测速和结果排序；所有测试强制直连。': 'Uses the CloudflareSpeedTest workflow for candidate discovery, latency and loss filtering, optional download testing, and ranking. All probes connect directly.',
+  '目标域名': 'Target domain',
+  '延迟模式': 'Latency mode',
+  '测试端口': 'Test port',
+  '当前 DNS 自动加入基线': 'Current DNS records are included as the baseline',
+  '高级测试参数': 'Advanced test settings',
+  '网段、筛选、下载测速与输出': 'Ranges, filters, download test, and output',
+  '自定义 IP / CIDR': 'Custom IP / CIDR',
+  '支持 IPv4、IPv6 和网段': 'Supports IPv4, IPv6, and CIDR ranges',
+  '每行一个 IP 或 CIDR，例如 104.16.0.0/13': 'One IP or CIDR per line, for example 104.16.0.0/13',
+  '候选 IP 使用目标域名完成 TLS 校验并验证 CF-Ray；测试强制直连，每次最多读取 4 KiB，不扫描 IP 网段。': 'Candidate IPs are validated against the target hostname for TLS and CF-Ray. Tests use direct connections, read up to 4 KiB, and do not scan IP ranges.',
+  '单 IP 采样': 'Samples per IP',
+  '最低延迟': 'Minimum latency',
+  '最高延迟': 'Maximum latency',
+  '最高丢包率': 'Maximum packet loss',
+  'HTTP 状态码': 'HTTP status codes',
+  '地区筛选': 'Region filter',
+  'IPv6 每网段抽样': 'IPv6 samples per range',
+  'IPv4 全量测试': 'Test every IPv4 address',
+  '保留调试错误': 'Keep debug errors',
+  '下载测速': 'Download test',
+  '下载测速地址': 'Download test URL',
+  '测速数量': 'Download test count',
+  '单节点时长': 'Time per node',
+  '速度下限': 'Minimum speed',
+  '展示数量': 'Displayed results',
+  '候选 IP': 'Candidate IPs',
+  '当前 DNS A / AAAA 自动加入基线': 'Current DNS A / AAAA records are included automatically',
+  '可选': 'Optional',
+  '导入 TXT / CSV': 'Import TXT / CSV',
+  '每行一个 IPv4 或 IPv6，也可使用逗号分隔': 'One IPv4 or IPv6 per line; commas are also supported',
+  '开始候选测试': 'Start Candidate Test',
+  '开始优选': 'Start Selection',
+  '等待候选测试': 'Waiting for candidate test',
+  '等待 CF IP 优选': 'Waiting for CF IP selection',
+  '当前 DNS 自动加入对比基线': 'Current DNS is added as the comparison baseline',
+  '测试路径说明': 'Test path details',
+  '候选 IP 测试绕过显式 HTTP / SOCKS 代理，结果可用于 hosts 或 DNS 治理；VPN / TUN 仍可能接管系统路由。': 'Candidate IP tests bypass explicit HTTP / SOCKS proxies, so results can guide hosts or DNS changes. A VPN / TUN may still take over system routing.',
+  '验证范围': 'Validation Scope',
+  '验证范围说明': 'Validation scope details',
+  'TCPing 只评价 IP 网络质量；切换 HTTPing 后会使用目标域名的 Host、SNI、路径与状态码验证候选。': 'TCPing measures IP-layer quality only. HTTPing also validates candidates with the target domain Host, SNI, path, and status code.',
+  '网络层优选': 'Network-layer Selection',
+  '目标域名验证': 'Target-domain Validation',
+  '候选总数': 'Candidates',
+  '可响应节点': 'Responsive Nodes',
+  '通过筛选': 'Passed Filters',
+  '平均延迟': 'Average Latency',
+  '下载速度': 'Download Speed',
+  'DNS 基线': 'DNS Baseline',
+  '推荐 IP': 'Recommended IP',
+  '当前 DNS 与推荐 IP': 'Current DNS vs Recommended IP',
+  'Cloudflare 待验证': 'Cloudflare pending verification',
+  'Cloudflare 已确认': 'Cloudflare verified',
+  '非 Cloudflare 代理': 'Not proxied by Cloudflare',
+  'Cloudflare 未确认': 'Cloudflare unverified',
+  '等待建立对比基线': 'Waiting for a comparison baseline',
+  '当前 DNS IP': 'Current DNS IP',
+  '尚未检测': 'Not tested yet',
+  '延迟变化': 'Latency Change',
+  '丢包变化': 'Loss Change',
+  '速度变化': 'Speed Change',
+  '完成测试后显示当前 DNS 节点与推荐节点的同口径对比。': 'After the test, compare the current DNS edge and recommended edge using the same methodology.',
+  '正在建立当前 DNS 基线': 'Establishing the current DNS baseline',
+  '正在验证目标域名的 Cloudflare 代理状态': 'Verifying whether the target domain is proxied by Cloudflare',
+  '正在采样': 'Sampling',
+  '正在筛选': 'Filtering',
+  '目标域名已验证': 'Target domain verified',
+  '域名验证未通过': 'Domain validation failed',
+  '直连 · 隧道路由': 'Direct · Tunnel route',
+  '未建立当前 DNS 基线': 'Current DNS baseline unavailable',
+  '当前解析节点未形成有效样本': 'The current resolved edge produced no valid sample',
+  '当前 DNS 已是推荐节点': 'Current DNS is already recommended',
+  '已建立同路径对比': 'Same-path comparison ready',
+  '基本持平': 'Essentially unchanged',
+  '无可比基线': 'No comparable baseline',
+  '未建立可比速度基线': 'No comparable speed baseline',
+  '缺少可比较的当前 DNS 节点，暂不计算提升比例。': 'No comparable current DNS edge is available, so improvement is not calculated.',
+  '提升值来自同一轮、同一路径和同一参数下的对照结果。': 'Improvement is calculated from the same run, path, and test parameters.',
+  '候选连接已绕过显式 HTTP/SOCKS 代理，结果可用于 hosts 或 DNS 治理': 'Candidate connections bypassed explicit HTTP/SOCKS proxies; results can guide hosts or DNS changes',
+  '目标域名验证未通过': 'Target-domain validation failed',
+  '仅网络层，未验证目标域名': 'Network layer only; target domain not validated',
+  '中位耗时改善': 'Median Improvement',
+  '推荐节点 P95': 'Recommended P95',
+  '推荐置信度': 'Recommendation Confidence',
+  'CF 验证节点': 'CF-Verified Nodes',
+  'CF IP 候选测试结果': 'CF IP Candidate Results',
+  'Cloudflare IP 优选结果': 'Cloudflare IP Selection Results',
+  'IP 地址': 'IP Address',
+  '已发送': 'Sent',
+  '已接收': 'Received',
+  '丢包率': 'Packet Loss',
+  '地区码': 'Region',
+  'CDN / 状态': 'CDN / Status',
+  '排名': 'Rank',
+  '来源': 'Source',
+  '成功率': 'Success Rate',
+  '抖动': 'Jitter',
+  'CF 节点': 'CF Edge',
+  '治理与验证': 'Optimization & Verification',
+  '等待形成治理建议': 'Waiting for recommendations',
+  '复制完整报告': 'Copy Full Report',
+  '复制 hosts 建议': 'Copy hosts Recommendation',
+  '导出 CSV': 'Export CSV',
+
+  '基线检测说明': 'Baseline test details',
+  '公共 DNS 结果不同可能来自 CDN 调度，不直接判定为污染；代理端口只做本机协议握手，不转发业务流量。': 'Different public DNS results may be caused by CDN routing and are not automatically treated as tampering. Proxy ports are checked locally and do not forward application traffic.',
+  '检测网络基线': 'Test Network Baseline',
+  '本机接口': 'Local Interfaces',
+  '公网出口': 'Public Egress',
+  '代理监听': 'Proxy Listeners',
+  '出口与协议栈': 'Egress & IP Stack',
+  'DNS 对照': 'DNS Comparison',
+  '系统 DNS': 'System DNS',
+  '公共 DNS': 'Public DNS',
+  '等待': 'Waiting',
+  '接口与路由绑定': 'Interfaces & Route Binding',
+  '等待接口检测': 'Waiting for interface detection',
+  '代理与端口证据': 'Proxy & Port Evidence',
+  '本地网络治理建议': 'Local Network Recommendations',
+  '复制基线报告': 'Copy Baseline Report',
+
+  '路径对照说明': 'Path comparison details',
+  '对同一目标分别使用系统代理、强制直连和可选手动代理进行小流量采样；只提供治理建议，不修改系统代理。': 'Runs lightweight samples to the same target through the system proxy, a direct connection, and an optional manual proxy. It provides recommendations without changing system settings.',
+  '每路径采样': 'Samples per path',
+  '开始路径对照': 'Start Path Comparison',
+  '等待路径测试': 'Waiting for path test',
+  '等待采样': 'Waiting for samples',
+  '连接路径对照结果': 'Connection Path Results',
+  '路径': 'Path',
+  '实际出口': 'Actual Egress',
+  '总耗时 P50': 'Total P50',
+  '复制路径对照报告': 'Copy Path Comparison Report',
+
+  '清空历史': 'Clear History',
+  '暂无本地检测记录': 'No Local Test History',
+  '完成诊断后，结果会保存在当前设备并可用于性能对比。': 'Completed results are saved on this device for performance comparisons.',
+  '完成诊断后显示本次地域链路': 'The route map will appear after diagnosis',
+  '链路与诊断分析': 'Route & Diagnostic Analysis',
+  '系统解析': 'System Resolution',
+  '等待解析器检测': 'Waiting for resolver test',
+  '连接地址': 'Connection Address',
+  '10 秒 · 快速验证': '10 sec · Quick Check',
+  '选择两条记录，对比治理前后的链路指标': 'Select two records to compare route metrics before and after optimization',
+  '对比选中项': 'Compare Selected',
+  '本地检测历史': 'Local Test History',
+  '检测时间': 'Test Time',
+  '关键指标': 'Key Metrics',
+  '结论': 'Finding',
+  '链路指标对比': 'Route Metric Comparison',
+  '关闭对比': 'Close comparison',
+  '趋势分析说明': 'Trend analysis details',
+  '仅对同一检测类型和目标的本地记录进行统计，避免不同检测口径相互混合。': 'Statistics include only local records of the same test type and target, preventing incompatible measurements from being mixed.',
+  '分析序列': 'Series',
+  '趋势指标': 'Metric',
+  '时间范围': 'Time Range',
+  '最近 7 天': 'Last 7 Days',
+  '最近 30 天': 'Last 30 Days',
+  '全部时间': 'All Time',
+  '暂无可分析的历史序列': 'No History Available for Analysis',
+  '同一目标完成至少两次同类型检测后显示趋势。': 'Trends appear after at least two tests of the same type for one target.',
+  '指标趋势': 'Metric Trend',
+  '历史指标趋势图': 'Historical metric trend chart',
+  '趋势结论': 'Trend Findings',
+
+  '切换为亮色主题': 'Switch to light theme',
+  '切换为暗色主题': 'Switch to dark theme',
+  '切换到英文': 'Switch to English',
+  '切换到中文': 'Switch to Chinese',
+  '本地环境': 'Local Environment',
+  '链路诊断': 'Route Diagnosis',
+  '平均耗时': 'Average Time',
+  '检测耗时': 'Test Time',
+  '端到端耗时': 'End-to-End Time',
+  '端口开放率': 'Open Port Rate',
+  '巡检通过率': 'Patrol Pass Rate',
+  '解析器可用率': 'Resolver Availability',
+  '解析器平均耗时': 'Resolver Average',
+  '可用 IP 栈': 'Available IP Stacks',
+  '推荐路径成功率': 'Recommended Path Success',
+  '推荐路径 P50': 'Recommended Path P50',
+  '推荐路径抖动': 'Recommended Path Jitter',
+  '相对基线改善': 'Improvement vs Baseline',
+  'HTTP 总耗时': 'HTTP Total Time',
+  '正常': 'Healthy',
+  '健康': 'Healthy',
+  '需关注': 'Needs Attention',
+  '异常': 'Issue',
+  '可用': 'Available',
+  '不可用': 'Unavailable',
+  '开放': 'Open',
+  '已开放': 'Open',
+  '拒绝': 'Refused',
+  '超时': 'Timed Out',
+  '未知': 'Unknown',
+  '未获取': 'Not available',
+  '未采集': 'Not collected',
+  '未识别': 'Not identified',
+  '未追踪': 'Not traced',
+  '检测中': 'Testing',
+  '进行中': 'Running',
+  '已停止': 'Stopped',
+  '检测已停止': 'Test stopped',
+  '检测任务已停止': 'Diagnostic task stopped',
+  '路由追踪已停止': 'Traceroute stopped',
+  '候选测试已停止': 'Candidate test stopped',
+  '已恢复': 'Recovered',
+  '未恢复': 'Not recovered',
+  '无明显差异': 'No material difference',
+  '未测速': 'Not tested',
+  '当前 DNS': 'Current DNS',
+  '无路由': 'No route',
+  '不可达': 'Unreachable',
+  '有效': 'Valid',
+  '未启用': 'Disabled',
+  '未启用 TLS': 'TLS not enabled',
+  '证书信息未获取': 'Certificate information unavailable',
+  '剩余时间未知': 'Remaining validity unknown',
+  '正在分析主要耗时': 'Analyzing the main latency source',
+  '正在探测网络路由，逐跳结果将在检测完成后显示': 'Tracing the network route; hop details will appear when complete',
+  '正在终止 HTTP 检测与路由追踪': 'Stopping HTTP test and traceroute',
+  '正在并行查询系统 DNS、公共 DNS 与 DoH': 'Querying system DNS, public DNS, and DoH in parallel',
+  '正在检测端口状态与应用层协议': 'Testing port status and application protocols',
+  '正在解析当前 DNS 并建立候选队列': 'Resolving current DNS and building the candidate queue',
+  '正在生成 CF IP 候选地址': 'Generating CF IP candidates',
+  '正在生成候选地址': 'Generating candidates',
+  '正在测试延迟与丢包': 'Testing latency and packet loss',
+  '正在测试下载速度': 'Testing download speed',
+  '正在读取预置网段与自定义候选': 'Loading preset ranges and custom candidates',
+  '正在收集节点质量证据': 'Collecting edge quality evidence',
+  '正在识别默认出口与双栈路径': 'Identifying default egress and dual-stack routes',
+  '正在并行查询解析器': 'Querying resolvers in parallel',
+  '正在识别接口类型、路由绑定与 MTU': 'Identifying interface type, route binding, and MTU',
+  '正在验证本地监听端点': 'Validating local listening endpoints',
+  '正在关联路由、DNS 与代理证据': 'Correlating route, DNS, and proxy evidence',
+  '采集中': 'Collecting',
+  '未形成诊断结论': 'No finding available',
+  '当前无需端口治理动作': 'No port remediation is currently needed',
+  '没有可展示的候选结果': 'No candidate results to display',
+  '未获取活动接口': 'No active interfaces found',
+  '尚无端口结果': 'No port results yet',
+  '诊断任务未返回结果': 'The diagnostic task returned no result',
+  '链路任务未返回结果': 'The route task returned no result',
+  '未找到正在运行的任务': 'No running task was found',
+  '复制成功': 'Copied',
+  '报告已复制': 'Report copied',
+  '复制失败': 'Copy failed',
+  '测试说明': 'Test details',
+  '测试路径': 'Test Paths',
+  '复测': 'Retest',
+  '使用该配置复测': 'Retest with this configuration',
+  '故障': 'Fault',
+  '多路径对照': 'Multi-path Comparison',
+  '完整诊断耗时': 'Full Diagnosis Time',
+  '当前值': 'Current',
+  '中位数': 'Median',
+  '最佳值': 'Best',
+  '数值越低越好': 'Lower is better',
+  '区间变化': 'Range Change',
+  '性能改善': 'Performance Improvement',
+  '健康记录': 'Healthy Records',
+  'HTTP 总耗时趋势': 'HTTP Total Time Trend',
+  '用于判断近期状态，避免单次结果造成误判。': 'Uses recent samples to avoid conclusions based on a single result.',
+  '结论来自各次检测的同口径健康判定。': 'The finding uses consistent health criteria across all tests.',
+  '百度': 'Baidu',
+  '腾讯': 'Tencent',
+  '阿里云': 'Alibaba Cloud',
+  '淘宝': 'Taobao',
+  '天猫': 'Tmall',
+  '京东': 'JD.com',
+  '微博': 'Weibo',
+  '哔哩哔哩': 'Bilibili',
+  '知乎': 'Zhihu',
+  '抖音': 'Douyin',
+  '今日头条': 'Toutiao',
+  '网易': 'NetEase',
+  '搜狐': 'Sohu',
+  '小米': 'Xiaomi',
+  '华为': 'Huawei',
+  '携程': 'Trip.com',
+  '美团': 'Meituan',
+  '拼多多': 'Pinduoduo',
+  '中国移动': 'China Mobile',
+  '国内': 'Domestic',
+  '国际': 'International',
+};
+
+// A small set of legacy, all-caps chrome labels used English as decoration in
+// the original Chinese UI. They now follow the selected language as well.
+const ZH = {
+  'NETWORK ASSISTANT': '网络助手',
+  'LOCAL ENGINE': '本地引擎',
+  'READY': '就绪',
+  'TIME LIMIT': '时间限制',
+  'PROBES': '探测项目',
+  'MAX HOPS': '最大跳数',
+  'NOT STARTED': '未开始',
+  'RUNNING': '进行中',
+  'COMPLETED': '已完成',
+  'MILLISECONDS': '毫秒',
+  'LOCAL ONLY': '仅本机',
+  'SELECTED': '已选择',
+  'RECORDS': '条记录',
+  'EDGE RECOMMENDATION': '边缘节点建议',
+  'DNS ASSESSMENT': 'DNS 评估',
+  'LAYER STATUS': '分层状态',
+  'ROUTE DECISION': '路径结论',
+  'REACHABILITY ASSESSMENT': '可达性评估',
+  'PATROL FINDING': '巡检结论',
+  'LATENCY SERIES': '延迟序列',
+  'OPTIONAL': '可选',
+};
+
+const PHRASES = {
+  '诊断完成': 'Diagnosis complete',
+  '检测完成': 'Test complete',
+  '任务完成': 'Task complete',
+  '正在运行': 'Running',
+  '正在检测': 'Testing',
+  '正在验证': 'Validating',
+  '正在查询': 'Querying',
+  '正在采集': 'Collecting',
+  '等待检测': 'Waiting',
+  '等待结果': 'Waiting for results',
+  '网络通畅': 'Network healthy',
+  '链路状态健康': 'Route is healthy',
+  '链路存在故障': 'Route issue detected',
+  '发现性能风险': 'Performance risk detected',
+  '连接服务器失败': 'Failed to connect to server',
+  '请求构造失败': 'Failed to create request',
+  '系统配置': 'System configuration',
+  '直连': 'Direct',
+  '代理': 'Proxy',
+  '自定义': 'Custom',
+  '推荐': 'Recommended',
+  '目标主机': 'Target host',
+  '检测时间': 'Test time',
+  '连接策略': 'Connection strategy',
+  '解析地址': 'Resolved addresses',
+  '诊断摘要': 'Diagnostic summary',
+  '其他需要关注': 'Other items to review',
+  '验证通过与路径提示': 'Validated items and route notes',
+  '没有其他需要优先处置的风险': 'No other high-priority risks',
+  '未确认 CF': 'CF not confirmed',
+  '适配完整链路': 'Suitable for the full route',
+  '公共地址组': 'Public address group',
+  '明确拒绝': 'Explicitly refused',
+  '静默超时': 'Silent timeout',
+  '疑似接管': 'Possible interception',
+  '目标未知': 'Unknown target',
+  '节点类型': 'Node type',
+  '地址': 'Address',
+  '通道': 'Channel',
+  '可用率': 'Availability',
+  '平均耗时': 'Average time',
+  '检测耗时': 'Test time',
+  '测试时长': 'Test Duration',
+  '采样间隔': 'Sample Interval',
+  '延迟阈值': 'Latency Threshold',
+  '失败率阈值': 'Failure Threshold',
+  '并发数': 'Concurrency',
+  '单 IP 采样': 'Samples per IP',
+  '每路径采样': 'Samples per Path',
+  '连接策略': 'Connection Strategy',
+  '指标': 'Metric',
+  '时间范围': 'Time Range',
+  'HTTP 总耗时': 'HTTP Total Time',
+  '综合诊断': 'Full Diagnosis',
+  '多站点巡检': 'Site Patrol',
+  '单目标监测': 'Single-target Monitoring',
+  '链路诊断': 'Route Diagnosis',
+  '本地环境': 'Local Environment',
+  'CDN 节点': 'CDN Nodes',
+  '自动代理': 'System Proxy',
+  '绕过代理': 'Bypass Proxy',
+  '手动代理': 'Manual Proxy',
+  '强制直连': 'Force Direct',
+  '需关注': 'Needs Attention',
+  '通过': 'Passed',
+  '开放': 'Open',
+  '解析器': 'Resolvers',
+  '双栈': 'dual-stack',
+  '模块': 'modules',
+  '站点': 'sites',
+  '有效记录': 'valid records',
+  '次记录需要关注': 'records need attention',
+  '最近': 'Last',
+  '次均值': '-sample average',
+  '较区间起点改善': 'Improvement from range start',
+};
+
+const phraseEntries = Object.entries(PHRASES).sort((a, b) => b[0].length - a[0].length);
+const nodeState = new WeakMap();
+const attributeState = new WeakMap();
+let locale = readInitialLocale();
+let observer = null;
+
+function readInitialLocale() {
+  try {
+    const saved = window.localStorage.getItem(LOCALE_KEY);
+    if (SUPPORTED_LOCALES.has(saved)) return saved;
+  } catch {}
+  return String(window.navigator?.language || '').toLowerCase().startsWith('en')
+    ? 'en-US'
+    : 'zh-CN';
+}
+
+function writeDocumentLocale() {
+  document.documentElement.lang = locale;
+  document.documentElement.dataset.locale = locale;
+  document.title = locale === 'en-US' ? 'ATNetool - Network Assistant' : 'ATNetool - AT 网络助手';
+}
+
+function preserveWhitespace(input, translated) {
+  const leading = input.match(/^\s*/)?.[0] || '';
+  const trailing = input.match(/\s*$/)?.[0] || '';
+  return `${leading}${translated}${trailing}`;
+}
+
+function translatePattern(text) {
+  const rules = [
+    [/^(\d+) 秒$/, '$1 sec'],
+    [/^(\d+) 分钟$/, '$1 min'],
+    [/^(\d+) 天$/, '$1 days'],
+    [/^(\d+) 次$/, '$1 samples'],
+    [/^最近 (\d+) 天$/, 'Last $1 Days'],
+    [/^剩余 (\d+) 天$/, '$1 days remaining'],
+    [/^已过期 (\d+) 天$/, 'Expired $1 days ago'],
+    [/^另有 (\d+) 个(.+)$/, '$1 more $2'],
+    [/^(\d+) 个跳点$/, '$1 hops'],
+    [/^(\d+) 条记录$/, '$1 records'],
+    [/^(\d+) 个样本$/, '$1 samples'],
+    [/^(\d+) 个站点$/, '$1 sites'],
+    [/^(\d+) 次有效记录$/, '$1 valid records'],
+    [/^(\d+) 次记录需要关注$/, '$1 records need attention'],
+    [/^(\d+)\/(\d+) 模块$/, '$1/$2 modules'],
+    [/^(\d+)\/(\d+) 通过$/, '$1/$2 passed'],
+    [/^(\d+)\/(\d+) 开放$/, '$1/$2 open'],
+    [/^(\d+)\/(\d+) 解析器$/, '$1/$2 resolvers'],
+    [/^(\d+)\/(\d+) 双栈$/, '$1/$2 dual-stack'],
+    [/^选择 (.+)$/, 'Select $1'],
+    [/^对比选中项 (\d+)\/(\d+)$/, 'Compare Selected $1/$2'],
+    [/^最近 (\d+) 次均值 (.+)$/, 'Last $1-sample average: $2'],
+    [/^较区间起点改善 (.+)$/, 'Improved $1 from range start'],
+    [/^第 (\d+) 跳$/, 'Hop $1'],
+    [/^本次 (.+) · 超过阈值$/, 'Current $1 · Above threshold'],
+    [/^本次 (.+)$/, 'Current $1'],
+    [/^成功 (\d+)\/(\d+)$/, 'Success $1/$2'],
+    [/^开放 (\d+) \/ 拒绝 (\d+) \/ 超时 (\d+) \/ 总数 (\d+)$/, 'Open $1 / Refused $2 / Timed out $3 / Total $4'],
+  ];
+  for (const [pattern, replacement] of rules) {
+    if (pattern.test(text)) return text.replace(pattern, replacement);
+  }
+  return null;
+}
+
+export function translate(value) {
+  if (value == null) return String(value ?? '');
+  const input = String(value);
+  const text = input.trim();
+  if (!text) return input;
+  if (locale === 'zh-CN') {
+    let translated = ZH[text];
+    if (!translated) {
+      const points = text.match(/^MILLISECONDS · (\d+) POINTS$/);
+      if (points) translated = `毫秒 · ${points[1]} 个数据点`;
+      else if (text.startsWith('FULL · ')) translated = text.replace(/^FULL/, '综合');
+      else if (text.startsWith('PORTS · ')) translated = text.replace(/^PORTS/, '端口');
+      else if (text.startsWith('ROUTE A\/B · ')) translated = text.replace(/^ROUTE A\/B/, '路径对照');
+      else if (text.startsWith('BASELINE · ')) translated = text.replace(/^BASELINE/, '基线');
+      else if (text.startsWith('MONITOR · ')) translated = text.replace(/^MONITOR/, '监测');
+    }
+    return translated ? preserveWhitespace(input, translated) : input;
+  }
+  let output = EN[text] || translatePattern(text);
+  if (!output && /[\u3400-\u9fff]/.test(text)) {
+    output = text
+      .replace(/(\d+)\s*个站点/g, '$1 sites')
+      .replace(/(\d+)\s*个跳点/g, '$1 hops')
+      .replace(/(\d+)\s*秒/g, '$1 sec')
+      .replace(/(\d+)\s*分钟/g, '$1 min')
+      .replace(/(\d+)\s*天/g, '$1 days')
+      .replace(/(\d+)\s*次/g, '$1 runs');
+    for (const [source, target] of phraseEntries) output = output.split(source).join(target);
+  }
+  return output && output !== text ? preserveWhitespace(input, output) : input;
+}
+
+function translateTextNode(node) {
+  if (!node?.nodeValue || !node.nodeValue.trim()) return;
+  const previous = nodeState.get(node);
+  let source = previous?.source ?? node.nodeValue;
+  if (previous && node.nodeValue !== previous.rendered) source = node.nodeValue;
+  const rendered = translate(source);
+  nodeState.set(node, { source, rendered });
+  if (node.nodeValue !== rendered) node.nodeValue = rendered;
+}
+
+function translateAttributes(element) {
+  if (!(element instanceof Element) || element.matches('[data-i18n-ignore]')) return;
+  let states = attributeState.get(element);
+  if (!states) {
+    states = new Map();
+    attributeState.set(element, states);
+  }
+  for (const attribute of TRANSLATED_ATTRIBUTES) {
+    if (!element.hasAttribute(attribute)) continue;
+    const current = element.getAttribute(attribute) || '';
+    const previous = states.get(attribute);
+    let source = previous?.source ?? current;
+    if (previous && current !== previous.rendered) source = current;
+    const rendered = translate(source);
+    states.set(attribute, { source, rendered });
+    if (current !== rendered) element.setAttribute(attribute, rendered);
+  }
+}
+
+function shouldSkip(node) {
+  const parent = node.parentElement;
+  return !parent || Boolean(parent.closest('script, style, [data-i18n-ignore]'));
+}
+
+function translateTree(root = document.body) {
+  if (!root) return;
+  if (root.nodeType === Node.TEXT_NODE) {
+    if (!shouldSkip(root)) translateTextNode(root);
+    return;
+  }
+  if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_NODE) return;
+  if (root instanceof Element) translateAttributes(root);
+  const walker = document.createTreeWalker(
+    root,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+  );
+  let node = walker.nextNode();
+  while (node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (!shouldSkip(node)) translateTextNode(node);
+    } else {
+      translateAttributes(node);
+    }
+    node = walker.nextNode();
+  }
+}
+
+export function getLocale() {
+  return locale;
+}
+
+export function setLocale(nextLocale) {
+  const next = SUPPORTED_LOCALES.has(nextLocale) ? nextLocale : 'zh-CN';
+  if (next === locale) return;
+  locale = next;
+  try {
+    window.localStorage.setItem(LOCALE_KEY, locale);
+  } catch {}
+  writeDocumentLocale();
+  translateTree(document.body);
+  window.dispatchEvent(new CustomEvent('atnetool:localechange', { detail: { locale } }));
+}
+
+export function toggleLocale() {
+  setLocale(locale === 'zh-CN' ? 'en-US' : 'zh-CN');
+}
+
+export function startI18n(root = document.body) {
+  writeDocumentLocale();
+  translateTree(root);
+  observer?.disconnect();
+  observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === 'characterData') {
+        if (!shouldSkip(mutation.target)) translateTextNode(mutation.target);
+      } else if (mutation.type === 'attributes') {
+        translateAttributes(mutation.target);
+      } else {
+        mutation.addedNodes.forEach((node) => translateTree(node));
+      }
+    }
+  });
+  observer.observe(root, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: TRANSLATED_ATTRIBUTES,
+  });
+}
+
+export function refreshI18n(root = document.body) {
+  translateTree(root);
+}
+
+writeDocumentLocale();
