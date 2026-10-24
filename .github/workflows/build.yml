@@ -37,11 +37,11 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
-      - name: Test Go packages
-        run: go test -tags webkit2_41 ./...
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+      - name: Test Go packages
+        run: go test -tags webkit2_41 ./...
 
   build:
     name: Build ${{ matrix.label }}
