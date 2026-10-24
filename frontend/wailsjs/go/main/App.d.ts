@@ -4,11 +4,19 @@ import {main} from '../models';
 
 export function ApplyCFAcceleration(arg1:main.CDNOptimizeResult):Promise<main.CFAccelerationStatus>;
 
+export function ApplyUpdate():Promise<main.UpdateState>;
+
 export function CancelTask(arg1:string):Promise<boolean>;
+
+export function CancelUpdate():Promise<main.UpdateState>;
+
+export function CheckForUpdates():Promise<main.UpdateState>;
 
 export function ClearHistory():Promise<void>;
 
 export function DetectProxyCompatibility():Promise<main.ProxyCompatibility>;
+
+export function DownloadUpdate():Promise<main.UpdateState>;
 
 export function ExportCDNResultsCSV(arg1:main.CDNOptimizeResult):Promise<string>;
 
@@ -17,6 +25,8 @@ export function ExportCFGovernanceBundle(arg1:main.CDNOptimizeResult):Promise<st
 export function GetCFAccelerationStatus():Promise<main.CFAccelerationStatus>;
 
 export function GetHistory():Promise<Array<main.HistoryRecord>>;
+
+export function GetUpdateState():Promise<main.UpdateState>;
 
 export function MigrateLegacyHistory(arg1:string):Promise<number>;
 

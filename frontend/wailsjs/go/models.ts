@@ -2402,5 +2402,72 @@ export namespace main {
 
 
 
+	export class UpdateRelease {
+	    version: string;
+	    notes?: string;
+	    published_at?: string;
+	    asset_name: string;
+	    asset_size: number;
+
+	    static createFrom(source: any = {}) {
+	        return new UpdateRelease(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version = source["version"];
+	        this.notes = source["notes"];
+	        this.published_at = source["published_at"];
+	        this.asset_name = source["asset_name"];
+	        this.asset_size = source["asset_size"];
+	    }
+	}
+	export class UpdateState {
+	    phase: string;
+	    current_version: string;
+	    enabled: boolean;
+	    release?: UpdateRelease;
+	    progress: number;
+	    downloaded: number;
+	    total: number;
+	    last_checked_at?: string;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new UpdateState(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.phase = source["phase"];
+	        this.current_version = source["current_version"];
+	        this.enabled = source["enabled"];
+	        this.release = this.convertValues(source["release"], UpdateRelease);
+	        this.progress = source["progress"];
+	        this.downloaded = source["downloaded"];
+	        this.total = source["total"];
+	        this.last_checked_at = source["last_checked_at"];
+	        this.error = source["error"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
 }
 

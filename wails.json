@@ -2,12 +2,19 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "ATNetool",
   "outputfilename": "ATNetool",
-  "frontend:install": "npm install",
+  "frontend:install": "npm ci",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "author": {
-    "name": "",
+    "name": "Attson",
     "email": ""
+  },
+  "info": {
+    "companyName": "Attson",
+    "productName": "ATNetool",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright © Attson",
+    "comments": "AT 网络助手"
   }
 }

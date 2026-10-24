@@ -65,6 +65,21 @@ function applyCFAcceleration(result) {
 function stopCFAcceleration() {
   return window.go.main.App.StopCFAcceleration();
 }
+function getUpdateState() {
+  return window.go.main.App.GetUpdateState();
+}
+function checkForUpdates() {
+  return window.go.main.App.CheckForUpdates();
+}
+function downloadUpdate() {
+  return window.go.main.App.DownloadUpdate();
+}
+function cancelUpdate() {
+  return window.go.main.App.CancelUpdate();
+}
+function applyUpdate() {
+  return window.go.main.App.ApplyUpdate();
+}
 function a(e) {
   return window.go.main.App.RunDNSDiagnose(e);
 }
@@ -9873,7 +9888,7 @@ Ce.innerHTML = `
         <header class="topbar">
             <div class="brand">
                 <div class="brand-mark" aria-hidden="true">
-                    <span></span><span></span><span></span>
+                    <img src="/appicon.svg" alt="">
                 </div>
                 <div>
                     <div class="brand-name">ATNetool</div>
@@ -9890,12 +9905,28 @@ Ce.innerHTML = `
                     <span>LOCAL ENGINE</span>
                     <strong>READY</strong>
                 </div>
+                <button class="version-button" id="version-button" type="button" aria-label="检查软件更新" title="检查软件更新">
+                    <span>VERSION</span><strong id="app-version">DEV</strong><i aria-hidden="true"></i>
+                </button>
                 <button class="language-toggle" id="language-toggle" type="button" data-i18n-ignore>EN</button>
                 <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换为亮色主题" title="切换为亮色主题">
                     <span id="theme-icon" aria-hidden="true">☀</span>
                 </button>
             </div>
         </header>
+
+        <section class="update-banner" id="update-banner" data-state="idle" role="status" aria-live="polite" hidden>
+            <i class="update-signal" aria-hidden="true"></i>
+            <div class="update-copy">
+                <strong id="update-title">正在检查更新</strong>
+                <span id="update-detail">正在连接 GitHub Release</span>
+            </div>
+            <div class="update-progress" id="update-progress" hidden><i id="update-progress-bar"></i></div>
+            <div class="update-actions">
+                <button class="quiet-button" id="update-secondary" type="button">稍后</button>
+                <button class="primary-button" id="update-primary" type="button">下载更新</button>
+            </div>
+        </section>
 
         <nav class="module-nav" aria-label="产品模块">
             <button class="module-nav-item active" type="button" data-module-group="diagnosis" aria-selected="true">
@@ -11060,6 +11091,15 @@ var p = document.querySelector(`#diagnose-button`),
   languageToggle = document.querySelector(`#language-toggle`),
   Te = document.querySelector(`#theme-toggle`),
   Ee = document.querySelector(`#theme-icon`),
+  versionButton = document.querySelector(`#version-button`),
+  appVersionLabel = document.querySelector(`#app-version`),
+  updateBanner = document.querySelector(`#update-banner`),
+  updateTitle = document.querySelector(`#update-title`),
+  updateDetail = document.querySelector(`#update-detail`),
+  updateProgress = document.querySelector(`#update-progress`),
+  updateProgressBar = document.querySelector(`#update-progress-bar`),
+  updatePrimary = document.querySelector(`#update-primary`),
+  updateSecondary = document.querySelector(`#update-secondary`),
   m = document.querySelector(`#target-input`),
   targetScheme = document.querySelector(`#target-scheme`),
   De = document.querySelector(`#target-message`),
@@ -11459,6 +11499,10 @@ var O = null,
   cdnProxyCompatibility = null,
   cdnAccelerationStatus = null,
   cdnAccelerationBusy = false,
+  appUpdateState = null,
+  appUpdateBusy = false,
+  appUpdateInteractive = false,
+  dismissedUpdateVersion = ``,
   activeTraceResult = null,
   activeTraceDiagnosis = null,
   N = [],
@@ -11501,6 +11545,7 @@ var O = null,
   _o());
 loadCDNProxyCompatibility();
 loadCFAccelerationStatus();
+loadUpdateState();
 window.setInterval(() => {
   if (cdnAccelerationStatus?.active && !cdnAccelerationBusy) loadCFAccelerationStatus(true);
 }, 3000);
@@ -11559,6 +11604,9 @@ var Or = [
   tr.addEventListener(`click`, Qr),
   E.addEventListener(`input`, Wr),
   nr.forEach((e) => e.addEventListener(`change`, Gr)),
+  versionButton.addEventListener(`click`, handleUpdateCheck),
+  updatePrimary.addEventListener(`click`, handleUpdatePrimary),
+  updateSecondary.addEventListener(`click`, handleUpdateSecondary),
   languageToggle.addEventListener(`click`, toggleLocale),
   Te.addEventListener(`click`, rs),
   m.addEventListener(`input`, Yo),
@@ -11622,6 +11670,168 @@ function syncLanguageToggle() {
   const label = english ? `Switch to Chinese` : `切换到英文`;
   languageToggle.setAttribute(`aria-label`, label);
   languageToggle.title = label;
+}
+
+async function loadUpdateState() {
+  try {
+    appUpdateState = await getUpdateState();
+    renderUpdateState();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function handleUpdateCheck() {
+  const phase = appUpdateState?.phase;
+  if (phase === `disabled`) {
+    Q(`当前构建未启用自动更新`);
+    return;
+  }
+  if ([`available`, `downloading`, `verifying`, `ready`, `applying`].includes(phase)) {
+    appUpdateInteractive = true;
+    dismissedUpdateVersion = ``;
+    renderUpdateState();
+    return;
+  }
+  if (appUpdateBusy) return;
+  appUpdateBusy = true;
+  appUpdateInteractive = true;
+  dismissedUpdateVersion = ``;
+  appUpdateState = { ...(appUpdateState || {}), phase: `checking`, error: `` };
+  renderUpdateState();
+  try {
+    appUpdateState = await checkForUpdates();
+    if (appUpdateState?.phase === `up_to_date`) {
+      Q(`当前已是最新版本`);
+      appUpdateInteractive = false;
+    }
+  } catch (error) {
+    console.error(error);
+    try {
+      appUpdateState = await getUpdateState();
+    } catch {}
+  } finally {
+    appUpdateBusy = false;
+    renderUpdateState();
+  }
+}
+
+async function handleUpdatePrimary() {
+  if (appUpdateBusy) return;
+  const phase = appUpdateState?.phase;
+  if (phase === `error`) {
+    await handleUpdateCheck();
+    return;
+  }
+  if (phase !== `available` && phase !== `ready`) return;
+  appUpdateBusy = true;
+  appUpdateInteractive = true;
+  renderUpdateState();
+  try {
+    if (phase === `available`) {
+      appUpdateState = await downloadUpdate();
+    } else {
+      appUpdateState = await applyUpdate();
+    }
+  } catch (error) {
+    console.error(error);
+    Q(error instanceof Error && error.message ? error.message : `更新操作失败`);
+    try {
+      appUpdateState = await getUpdateState();
+    } catch {}
+  } finally {
+    appUpdateBusy = false;
+    renderUpdateState();
+  }
+}
+
+async function handleUpdateSecondary() {
+  const phase = appUpdateState?.phase;
+  if (phase === `downloading` || phase === `verifying`) {
+    appUpdateState = await cancelUpdate();
+    renderUpdateState();
+    return;
+  }
+  dismissedUpdateVersion = appUpdateState?.release?.version || phase || `dismissed`;
+  appUpdateInteractive = false;
+  updateBanner.hidden = true;
+}
+
+function renderUpdateState() {
+  const state = appUpdateState || { phase: `idle`, current_version: `DEV`, enabled: false };
+  const phase = state.phase || `idle`;
+  const version = String(state.current_version || `DEV`).replace(/^v/i, ``);
+  appVersionLabel.textContent = version === `0.0.0-dev` ? `DEV` : `V${version}`;
+  versionButton.dataset.state = phase;
+  versionButton.title = state.enabled ? `检查软件更新` : `当前构建未启用自动更新`;
+
+  const releaseVersion = state.release?.version || ``;
+  const hiddenByChoice = releaseVersion && dismissedUpdateVersion === releaseVersion;
+  const autoError = phase === `error` && !appUpdateInteractive;
+  const silentPhase = [`disabled`, `idle`, `up_to_date`].includes(phase) || (phase === `checking` && !appUpdateInteractive);
+  updateBanner.hidden = Boolean(hiddenByChoice || autoError || silentPhase);
+  updateBanner.dataset.state = phase;
+  updateProgress.hidden = phase !== `downloading`;
+  updateProgressBar.style.width = `${Math.max(0, Math.min(100, Number(state.progress) || 0))}%`;
+  updatePrimary.hidden = false;
+  updateSecondary.hidden = false;
+  updatePrimary.disabled = appUpdateBusy || [`checking`, `downloading`, `verifying`, `applying`].includes(phase);
+  updateSecondary.disabled = phase === `applying`;
+
+  switch (phase) {
+    case `checking`:
+      updateTitle.textContent = `正在检查更新`;
+      updateDetail.textContent = `正在连接 GitHub Release`;
+      updatePrimary.textContent = `检查中`;
+      updateSecondary.textContent = `隐藏`;
+      break;
+    case `available`:
+      updateTitle.textContent = `发现新版本 v${releaseVersion}`;
+      updateDetail.textContent = `下载后会验证发布签名与文件完整性`;
+      updatePrimary.textContent = `下载更新`;
+      updateSecondary.textContent = `稍后`;
+      break;
+    case `downloading`:
+      updateTitle.textContent = `正在下载 v${releaseVersion}`;
+      updateDetail.textContent = `${Number(state.progress) || 0}% · ${formatUpdateBytes(state.downloaded)} / ${formatUpdateBytes(state.total)}`;
+      updatePrimary.textContent = `下载中`;
+      updateSecondary.textContent = `取消`;
+      break;
+    case `verifying`:
+      updateTitle.textContent = `正在验证更新`;
+      updateDetail.textContent = `正在核对 Ed25519 签名与 SHA-256`;
+      updatePrimary.textContent = `验证中`;
+      updateSecondary.textContent = `取消`;
+      break;
+    case `ready`:
+      updateTitle.textContent = `v${releaseVersion} 已准备好`;
+      updateDetail.textContent = `验证通过，安装时应用将退出并自动重启`;
+      updatePrimary.textContent = `安装并重启`;
+      updateSecondary.textContent = `稍后`;
+      break;
+    case `applying`:
+      updateTitle.textContent = `正在安装更新`;
+      updateDetail.textContent = `正在安全退出并准备重新启动`;
+      updatePrimary.textContent = `正在重启`;
+      updateSecondary.textContent = `请稍候`;
+      break;
+    case `error`:
+      updateTitle.textContent = `更新未完成`;
+      updateDetail.textContent = state.error || `请检查网络后重试`;
+      updatePrimary.textContent = `重新检查`;
+      updateSecondary.textContent = `稍后`;
+      break;
+    default:
+      updateBanner.hidden = true;
+  }
+}
+
+function formatUpdateBytes(value) {
+  const bytes = Math.max(0, Number(value) || 0);
+  if (!bytes) return `--`;
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
 }
 
 function getModuleGroup(module) {
@@ -11718,6 +11928,10 @@ window.runtime?.EventsOn &&
     cdnAccelerationStatus = status || null;
     renderCFAccelerationStatus();
     if (status?.message) Q(status.message);
+  }),
+  te(`updater:state`, (state) => {
+    appUpdateState = state || null;
+    renderUpdateState();
   }),
   te(`path-compare:sample`, (e) => {
     if (!e || e.task_id !== fr) return;

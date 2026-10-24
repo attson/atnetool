@@ -6,8 +6,20 @@ export function ApplyCFAcceleration(arg1) {
   return window['go']['main']['App']['ApplyCFAcceleration'](arg1);
 }
 
+export function ApplyUpdate() {
+  return window['go']['main']['App']['ApplyUpdate']();
+}
+
 export function CancelTask(arg1) {
   return window['go']['main']['App']['CancelTask'](arg1);
+}
+
+export function CancelUpdate() {
+  return window['go']['main']['App']['CancelUpdate']();
+}
+
+export function CheckForUpdates() {
+  return window['go']['main']['App']['CheckForUpdates']();
 }
 
 export function ClearHistory() {
@@ -16,6 +28,10 @@ export function ClearHistory() {
 
 export function DetectProxyCompatibility() {
   return window['go']['main']['App']['DetectProxyCompatibility']();
+}
+
+export function DownloadUpdate() {
+  return window['go']['main']['App']['DownloadUpdate']();
 }
 
 export function ExportCDNResultsCSV(arg1) {
@@ -32,6 +48,10 @@ export function GetCFAccelerationStatus() {
 
 export function GetHistory() {
   return window['go']['main']['App']['GetHistory']();
+}
+
+export function GetUpdateState() {
+  return window['go']['main']['App']['GetUpdateState']();
 }
 
 export function MigrateLegacyHistory(arg1) {

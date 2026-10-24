@@ -2,6 +2,9 @@
 
 The build directory is used to house all the build files and assets for your application. 
 
+The editable ATNetool icon source is `frontend/public/appicon.svg`. Its platform
+outputs are `appicon.png`, `linux/icon.png`, and `windows/icon.ico`.
+
 The structure is:
 
 * bin - Output directory

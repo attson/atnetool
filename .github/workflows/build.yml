@@ -1,0 +1,179 @@
+name: CI and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atnetool-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgtk-3-dev libwebkit2gtk-4.1-dev
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Test Go packages
+        run: go test -tags webkit2_41 ./...
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14,         platform: darwin/arm64,  label: macos-arm64 }
+          - { os: macos-15-intel,   platform: darwin/amd64,  label: macos-x64 }
+          - { os: ubuntu-24.04,     platform: linux/amd64,   label: linux-x64 }
+          - { os: ubuntu-24.04-arm, platform: linux/arm64,   label: linux-arm64 }
+          - { os: windows-latest,   platform: windows/amd64, label: windows-x64 }
+    runs-on: ${{ matrix.os }}
+    environment: prod
+    env:
+      ATNETOOL_UPDATE_VERIFY_PUBLIC_KEY: ${{ secrets.ATNETOOL_UPDATE_VERIFY_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Resolve build version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          else
+            version="0.0.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          node -e "const fs=require('fs');const p='wails.json';const j=JSON.parse(fs.readFileSync(p));j.info.productVersion='$version';fs.writeFileSync(p,JSON.stringify(j,null,2)+'\\n')"
+
+      - name: Require update verification key
+        shell: bash
+        run: |
+          test -n "$ATNETOOL_UPDATE_VERIFY_PUBLIC_KEY"
+          node -e "process.stdout.write('ATNETOOL_UPDATE_VERIFY_PUBLIC_KEY_BASE64='+Buffer.from(process.env.ATNETOOL_UPDATE_VERIFY_PUBLIC_KEY,'utf8').toString('base64')+'\n')" >> "$GITHUB_ENV"
+
+      - name: Install Linux desktop dependencies
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install NSIS
+        if: matrix.label == 'windows-x64'
+        shell: powershell
+        run: choco install nsis -y --no-progress
+
+      - name: Install Wails
+        shell: bash
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build application
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ldflags="-X main.appVersion=$VERSION -X main.updateVerifyPublicKeyBase64=$ATNETOOL_UPDATE_VERIFY_PUBLIC_KEY_BASE64 -X main.updateRepository=attson/atnetool"
+          extra=()
+          if [[ "${{ matrix.label }}" == linux-* ]]; then extra+=( -tags webkit2_41 ); fi
+          if [[ "${{ matrix.label }}" == windows-x64 ]]; then extra+=( -nsis -webview2 download ); fi
+          wails build -m -clean -trimpath -platform "${{ matrix.platform }}" -ldflags "$ldflags" "${extra[@]}"
+
+      - name: Stage release assets
+        shell: bash
+        run: bash .github/scripts/stage-bundles.sh "${{ matrix.label }}" "${{ steps.version.outputs.version }}" "${{ runner.temp }}/stage"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.label }}
+          path: ${{ runner.temp }}/stage/
+          retention-days: 14
+          if-no-files-found: error
+
+  release:
+    name: Publish signed release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    environment: prod
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/release
+          merge-multiple: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Generate SHA256SUMS
+        working-directory: ${{ runner.temp }}/release
+        shell: bash
+        run: |
+          find . -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.exe' \) -print0 \
+            | sort -z | while IFS= read -r -d '' file; do
+                printf '%s  %s\n' "$(sha256sum "$file" | awk '{print $1}')" "$(basename "$file")"
+              done > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Sign checksum manifest
+        env:
+          ATNETOOL_UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.ATNETOOL_UPDATE_SIGNING_PRIVATE_KEY }}
+        run: node .github/scripts/sign-checksums.mjs "${{ runner.temp }}/release/SHA256SUMS"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            echo "Release ${{ github.ref_name }} already exists; refusing to replace it."
+            exit 1
+          fi
+          gh release create "${{ github.ref_name }}" \
+            --title "ATNetool ${{ github.ref_name }}" \
+            --generate-notes \
+            "${{ runner.temp }}/release/"*
