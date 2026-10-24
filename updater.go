@@ -306,6 +306,9 @@ func buildUpdateRelease(release githubUpdateRelease, operatingSystem, architectu
 	if !found {
 		return UpdateRelease{}, updateDownloadSource{}, fmt.Errorf("Release 中缺少 %s", assetName)
 	}
+	if asset.Size <= 0 {
+		return UpdateRelease{}, updateDownloadSource{}, fmt.Errorf("Release 资产 %s 的大小无效", assetName)
+	}
 	checksums, found := findGithubUpdateAsset(release.Assets, "SHA256SUMS")
 	if !found {
 		return UpdateRelease{}, updateDownloadSource{}, fmt.Errorf("Release 中缺少 SHA256SUMS")
@@ -451,6 +454,12 @@ func (manager *updateManager) downloadAssetOnce(ctx context.Context, rawURL, par
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return fmt.Errorf("%s 返回 %s", rawURL, response.Status)
 	}
+	if reportedSize <= 0 {
+		return fmt.Errorf("更新文件大小无效")
+	}
+	if response.ContentLength > reportedSize {
+		return fmt.Errorf("更新文件超过 Release 声明大小")
+	}
 	total := response.ContentLength
 	if total <= 0 {
 		total = reportedSize
@@ -466,6 +475,10 @@ func (manager *updateManager) downloadAssetOnce(ctx context.Context, rawURL, par
 	for {
 		count, readErr := response.Body.Read(buffer)
 		if count > 0 {
+			if downloaded+int64(count) > reportedSize {
+				file.Close()
+				return fmt.Errorf("更新文件超过 Release 声明大小")
+			}
 			if _, err = file.Write(buffer[:count]); err != nil {
 				file.Close()
 				return fmt.Errorf("写入更新缓存失败：%w", err)

@@ -213,6 +213,28 @@ func TestFetchExpectedChecksumFallsBackAfterInvalidMirrorResponse(t *testing.T) 
 	}
 }
 
+func TestDownloadRejectsResponseLargerThanReleaseAsset(t *testing.T) {
+	asset := []byte("response larger than declared")
+	digest := sha256.Sum256(asset)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write(asset)
+	}))
+	defer server.Close()
+
+	manager := &updateManager{client: server.Client()}
+	destination := filepath.Join(t.TempDir(), "update.part")
+	err := manager.downloadAssetOnce(
+		context.Background(),
+		server.URL,
+		destination,
+		hex.EncodeToString(digest[:]),
+		int64(len(asset)-1),
+	)
+	if err == nil || !strings.Contains(err.Error(), "超过 Release 声明大小") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
 func TestCanceledDownloadCannotBecomeReady(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
