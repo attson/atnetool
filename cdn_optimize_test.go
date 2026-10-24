@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -220,5 +221,38 @@ func TestModernCDNRankingKeepsFilteredDNSAsComparisonBaseline(t *testing.T) {
 	}
 	if math.Abs(result.Comparison.LatencyImprovementPercent-60) > 0.001 || math.Abs(result.Comparison.LossReductionPoints-25) > 0.001 {
 		t.Fatalf("comparison=%+v", result.Comparison)
+	}
+}
+
+func TestApplyCDNRecommendationValidationRequiresCloudflareEvidence(t *testing.T) {
+	result := CDNOptimizeResult{
+		BestIP:     "104.16.1.20",
+		Confidence: "high",
+		Finding:    PatrolFinding{Level: "good", Title: "fast"},
+		Results: []CDNProbeResult{{
+			Candidate: CDNCandidate{IP: "104.16.1.20"}, Eligible: true, Recommended: true,
+		}},
+	}
+	applyCDNRecommendationValidation(&result, CDNProbeSample{Success: true, StatusCode: 200})
+	if result.TargetValidated || result.Confidence != "low" || result.Finding.Level != "warning" {
+		t.Fatalf("result=%+v", result)
+	}
+	if !strings.Contains(result.TargetValidation, "CF-Ray") {
+		t.Fatalf("validation=%s", result.TargetValidation)
+	}
+}
+
+func TestApplyCDNRecommendationValidationUpdatesRecommendedNode(t *testing.T) {
+	result := CDNOptimizeResult{
+		BestIP: "104.16.1.20",
+		Results: []CDNProbeResult{{
+			Candidate: CDNCandidate{IP: "104.16.1.20"}, Eligible: true, Recommended: true,
+		}},
+	}
+	applyCDNRecommendationValidation(&result, CDNProbeSample{
+		Success: true, StatusCode: 200, CFRay: "abc-HKG", CFColo: "HKG", CDNProvider: "Cloudflare",
+	})
+	if !result.TargetValidated || !result.Results[0].VerifiedCloudflare || result.Results[0].CFRay != "abc-HKG" {
+		t.Fatalf("result=%+v", result)
 	}
 }

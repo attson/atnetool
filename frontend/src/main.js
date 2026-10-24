@@ -50,6 +50,21 @@ function i(e) {
 function exportCDNResults(e) {
   return window.go.main.App.ExportCDNResultsCSV(e);
 }
+function exportCFGovernanceBundle(e) {
+  return window.go.main.App.ExportCFGovernanceBundle(e);
+}
+function detectProxyCompatibility() {
+  return window.go.main.App.DetectProxyCompatibility();
+}
+function getCFAccelerationStatus() {
+  return window.go.main.App.GetCFAccelerationStatus();
+}
+function applyCFAcceleration(result) {
+  return window.go.main.App.ApplyCFAcceleration(result);
+}
+function stopCFAcceleration() {
+  return window.go.main.App.StopCFAcceleration();
+}
 function a(e) {
   return window.go.main.App.RunDNSDiagnose(e);
 }
@@ -10565,7 +10580,7 @@ Ce.innerHTML = `
                         </div>
                     </div>
                     <span class="info-tip" tabindex="0" role="note" aria-label="Cloudflare IP 优选说明"
-                          data-tooltip="按 CloudflareSpeedTest 流程执行候选发现、延迟与丢包筛选、可选下载测速和结果排序；所有测试强制直连。">i</span>
+                          data-tooltip="按 CloudflareSpeedTest 流程执行候选发现、延迟与丢包筛选、可选下载测速和结果排序；自动兼容当前代理环境。">i</span>
                 </div>
 
                 <form class="cdn-form" id="cdn-form" novalidate>
@@ -10577,39 +10592,65 @@ Ce.innerHTML = `
                                    autocapitalize="none" spellcheck="false" placeholder="www.example.com" required aria-required="true">
                         </div>
                     </div>
-                    <div class="target-control">
-                        <label for="cdn-path">测试路径</label>
-                        <div class="target-input-wrap">
-                            <span class="input-prefix" aria-hidden="true">URI</span>
-                            <input id="cdn-path" type="text" autocomplete="off" spellcheck="false" placeholder="/">
-                        </div>
-                    </div>
-                    <label class="cdn-select-control">
-                        <span>延迟模式</span>
-                        <select id="cdn-mode">
-                            <option value="tcp" selected>TCPing</option>
-                            <option value="http">HTTPing</option>
-                        </select>
-                    </label>
-                    <div class="target-control cdn-port-control">
-                        <label for="cdn-port">测试端口</label>
-                        <div class="target-input-wrap"><input id="cdn-port" type="number" min="1" max="65535" value="443"></div>
-                    </div>
+                    <button class="primary-button cdn-run-button" id="cdn-button" type="submit">
+                        <span class="button-icon" aria-hidden="true">▶</span>
+                        <span>开始优选</span>
+                    </button>
 
-                    <div class="cdn-source-strip">
-                        <label><input id="cdn-preset-v4" type="checkbox" checked><span>Cloudflare IPv4</span></label>
-                        <label><input id="cdn-preset-v6" type="checkbox"><span>Cloudflare IPv6</span></label>
-                        <span>当前 DNS 自动加入对比基线</span>
-                    </div>
-
-                    <div class="cdn-scope-strip">
-                        <div><span>测试路径</span><strong>强制直连</strong><span class="info-tip" tabindex="0" role="note" aria-label="测试路径说明" data-tooltip="候选 IP 测试绕过显式 HTTP / SOCKS 代理，结果可用于 hosts 或 DNS 治理；VPN / TUN 仍可能接管系统路由。">i</span></div>
-                        <div><span>验证范围</span><strong id="cdn-validation-scope">网络层优选</strong><span class="info-tip" tabindex="0" role="note" aria-label="验证范围说明" data-tooltip="TCPing 只评价 IP 网络质量；切换 HTTPing 后会使用目标域名的 Host、SNI、路径与状态码验证候选。">i</span></div>
+                    <div class="cdn-compatibility" id="cdn-compatibility" data-state="checking">
+                        <i aria-hidden="true"></i>
+                        <div><strong id="cdn-compatibility-title">正在识别代理环境</strong><span id="cdn-compatibility-detail">自动选择与当前网络一致的测试出口</span></div>
+                        <button id="cdn-compatibility-refresh" type="button" aria-label="重新识别代理环境">↻</button>
                     </div>
 
                     <details class="cdn-advanced">
-                        <summary><span>高级测试参数</span><small>网段、筛选、下载测速与输出</small></summary>
+                        <summary><span>高级设置</span><small>默认已自动配置</small></summary>
                         <div class="cdn-advanced-body">
+                            <div class="cdn-basic-options">
+                                <div class="target-control">
+                                    <label for="cdn-path">测试路径</label>
+                                    <div class="target-input-wrap">
+                                        <span class="input-prefix" aria-hidden="true">URI</span>
+                                        <input id="cdn-path" type="text" autocomplete="off" spellcheck="false" placeholder="/">
+                                    </div>
+                                </div>
+                                <label class="cdn-select-control">
+                                    <span>延迟模式</span>
+                                    <select id="cdn-mode">
+                                        <option value="tcp" selected>TCPing + 域名验证</option>
+                                        <option value="http">HTTPing</option>
+                                    </select>
+                                </label>
+                                <div class="target-control cdn-port-control">
+                                    <label for="cdn-port">测试端口</label>
+                                    <div class="target-input-wrap"><input id="cdn-port" type="number" min="1" max="65535" value="443"></div>
+                                </div>
+                                <label class="cdn-select-control">
+                                    <span>测试出口</span>
+                                    <select id="cdn-route-mode">
+                                        <option value="auto" selected>自动兼容</option>
+                                        <option value="direct">本机网络</option>
+                                        <option value="proxy">现有代理</option>
+                                    </select>
+                                </label>
+                            </div>
+
+                            <label class="target-control cdn-upstream-control" id="cdn-upstream-control">
+                                <span>上游代理</span>
+                                <div class="target-input-wrap"><input id="cdn-upstream-proxy" type="text" autocomplete="off" spellcheck="false" placeholder="自动识别 Clash HTTP / SOCKS 端口"></div>
+                            </label>
+
+                            <div class="cdn-source-strip">
+                                <label><input id="cdn-preset-v4" type="checkbox" checked><span>Cloudflare IPv4</span></label>
+                                <label><input id="cdn-preset-v6" type="checkbox"><span>Cloudflare IPv6</span></label>
+                                <span>当前 DNS 自动加入对比基线</span>
+                            </div>
+
+                            <div class="cdn-scope-strip">
+                                <div><span>测试出口</span><strong id="cdn-route-scope">自动兼容</strong><span id="cdn-route-scope-tip" class="info-tip" tabindex="0" role="note" aria-label="测试出口说明" data-tooltip="自动识别本地代理与 TUN，并使用与当前网络一致的出口测试候选 IP。">i</span></div>
+                                <div><span>验证范围</span><strong id="cdn-validation-scope">智能验证</strong><span class="info-tip" tabindex="0" role="note" aria-label="验证范围说明" data-tooltip="网络层排序后自动验证推荐 IP 的 Host、SNI、TLS、状态码与 CF-Ray。">i</span></div>
+                            </div>
+
                             <div class="cdn-candidates">
                                 <div class="cdn-candidates-heading">
                                     <label for="cdn-candidate-ips">自定义 IP / CIDR <small>支持 IPv4、IPv6 和网段</small></label>
@@ -10648,10 +10689,6 @@ Ce.innerHTML = `
                             </div>
                         </div>
                     </details>
-                    <button class="primary-button cdn-run-button" id="cdn-button" type="submit">
-                        <span class="button-icon" aria-hidden="true">▶</span>
-                        <span>开始优选</span>
-                    </button>
                 </form>
 
                 <div class="cdn-output" id="cdn-output" data-state="idle">
@@ -10703,15 +10740,34 @@ Ce.innerHTML = `
                         <div class="cdn-governance-title"><span>GOVERNANCE</span><strong>治理与验证</strong></div>
                         <div id="cdn-governance-list"><div class="cdn-awaiting">等待形成治理建议</div></div>
                     </section>
+                    <section class="cdn-acceleration" id="cdn-acceleration" data-state="inactive">
+                        <i aria-hidden="true"></i>
+                        <div class="cdn-acceleration-copy">
+                            <span>内置兼容网关</span>
+                            <strong id="cdn-acceleration-title">未启用 CF IP 加速</strong>
+                            <p id="cdn-acceleration-detail">应用后仅接管系统 HTTP / HTTPS 代理，可随时恢复原设置</p>
+                        </div>
+                        <div class="cdn-acceleration-meta" id="cdn-acceleration-meta" hidden>
+                            <span id="cdn-acceleration-route">--</span>
+                            <code id="cdn-acceleration-endpoint">--</code>
+                        </div>
+                        <div class="cdn-acceleration-actions">
+                            <button class="secondary-button" id="cdn-acceleration-stop" type="button" disabled hidden>停止并恢复</button>
+                            <button class="primary-button" id="cdn-acceleration-apply" type="button" disabled>应用优选</button>
+                        </div>
+                    </section>
                     <div class="cdn-actions">
                         <button class="secondary-button cdn-copy-button" id="cdn-report-button" type="button" disabled>
                             <span aria-hidden="true">▣</span><span>复制完整报告</span>
                         </button>
                         <button class="secondary-button cdn-copy-button" id="cdn-copy-button" type="button" disabled>
-                            <span aria-hidden="true">▣</span><span>复制 hosts 建议</span>
+                            <span aria-hidden="true">▣</span><span>复制当前域名配置</span>
                         </button>
                         <button class="secondary-button cdn-copy-button" id="cdn-export-button" type="button" disabled>
                             <span aria-hidden="true">⇩</span><span>导出 CSV</span>
+                        </button>
+                        <button class="secondary-button cdn-copy-button cdn-governance-export-button" id="cdn-governance-export-button" type="button" disabled>
+                            <span aria-hidden="true">⇩</span><span>生成全局加速配置</span>
                         </button>
                     </div>
                 </div>
@@ -11107,6 +11163,15 @@ var Pe = document.querySelector(`#trace-list`),
   cdnMode = document.querySelector(`#cdn-mode`),
   cdnValidationScope = document.querySelector(`#cdn-validation-scope`),
   cdnPort = document.querySelector(`#cdn-port`),
+  cdnRouteMode = document.querySelector(`#cdn-route-mode`),
+  cdnRouteScope = document.querySelector(`#cdn-route-scope`),
+  cdnRouteScopeTip = document.querySelector(`#cdn-route-scope-tip`),
+  cdnUpstreamControl = document.querySelector(`#cdn-upstream-control`),
+  cdnUpstreamProxy = document.querySelector(`#cdn-upstream-proxy`),
+  cdnCompatibility = document.querySelector(`#cdn-compatibility`),
+  cdnCompatibilityTitle = document.querySelector(`#cdn-compatibility-title`),
+  cdnCompatibilityDetail = document.querySelector(`#cdn-compatibility-detail`),
+  cdnCompatibilityRefresh = document.querySelector(`#cdn-compatibility-refresh`),
   cdnPresetV4 = document.querySelector(`#cdn-preset-v4`),
   cdnPresetV6 = document.querySelector(`#cdn-preset-v6`),
   cdnTestAll = document.querySelector(`#cdn-test-all`),
@@ -11157,6 +11222,15 @@ var Pe = document.querySelector(`#trace-list`),
   rn = document.querySelector(`#cdn-report-button`),
   an = document.querySelector(`#cdn-copy-button`),
   cdnExportButton = document.querySelector(`#cdn-export-button`),
+  cdnGovernanceExportButton = document.querySelector(`#cdn-governance-export-button`),
+  cdnAcceleration = document.querySelector(`#cdn-acceleration`),
+  cdnAccelerationTitle = document.querySelector(`#cdn-acceleration-title`),
+  cdnAccelerationDetail = document.querySelector(`#cdn-acceleration-detail`),
+  cdnAccelerationMeta = document.querySelector(`#cdn-acceleration-meta`),
+  cdnAccelerationRoute = document.querySelector(`#cdn-acceleration-route`),
+  cdnAccelerationEndpoint = document.querySelector(`#cdn-acceleration-endpoint`),
+  cdnAccelerationApply = document.querySelector(`#cdn-acceleration-apply`),
+  cdnAccelerationStop = document.querySelector(`#cdn-acceleration-stop`),
   on = document.querySelector(`#baseline-form`),
   sn = document.querySelector(`#baseline-target`),
   C = document.querySelector(`#baseline-button`),
@@ -11382,6 +11456,9 @@ var O = null,
   Cr = new Map(),
   wr = new Map(),
   Tr = null,
+  cdnProxyCompatibility = null,
+  cdnAccelerationStatus = null,
+  cdnAccelerationBusy = false,
   activeTraceResult = null,
   activeTraceDiagnosis = null,
   N = [],
@@ -11410,6 +11487,7 @@ var O = null,
   fi(),
   syncCDNDownloadOptions(),
   syncCDNModeOptions(),
+  syncCDNRouteOptions(),
   ea(),
   initialiseIntegratedControls(),
   normaliseTargetField(m, targetScheme),
@@ -11421,6 +11499,11 @@ var O = null,
   syncLanguageToggle(),
   startI18n(document.body),
   _o());
+loadCDNProxyCompatibility();
+loadCFAccelerationStatus();
+window.setInterval(() => {
+  if (cdnAccelerationStatus?.active && !cdnAccelerationBusy) loadCFAccelerationStatus(true);
+}, 3000);
 var Or = [
   [`解析目标地址`, `正在采集 DNS 解析结果与解析耗时`],
   [`建立网络路径`, `正在验证直连或代理出口的可达性`],
@@ -11456,11 +11539,16 @@ var Or = [
   an.addEventListener(`click`, gi),
   rn.addEventListener(`click`, _i),
   cdnExportButton.addEventListener(`click`, exportCDNCSV),
+  cdnGovernanceExportButton.addEventListener(`click`, exportCDNGovernance),
   Gt.addEventListener(`click`, () => Kt.click()),
   Kt.addEventListener(`change`, di),
   Wt.addEventListener(`input`, fi),
   cdnDownloadEnabled.addEventListener(`change`, syncCDNDownloadOptions),
   cdnMode.addEventListener(`change`, syncCDNModeOptions),
+  cdnRouteMode.addEventListener(`change`, syncCDNRouteOptions),
+  cdnCompatibilityRefresh.addEventListener(`click`, loadCDNProxyCompatibility),
+  cdnAccelerationApply.addEventListener(`click`, handleCFAccelerationApply),
+  cdnAccelerationStop.addEventListener(`click`, handleCFAccelerationStop),
   on.addEventListener(`submit`, yi),
   hn.addEventListener(`click`, Ti),
   gn.addEventListener(`submit`, Di),
@@ -11622,9 +11710,14 @@ window.runtime?.EventsOn &&
   te(`cdn:result`, (e) => {
     if (!e || e.task_id !== ur) return;
     if (e.probe?.candidate?.ip) ri(e.probe);
-    const labels = { discovery: `DISCOVERY`, verification: `VERIFYING`, latency: `LATENCY`, download: `DOWNLOAD` };
+    const labels = { discovery: `DISCOVERY`, verification: `VERIFYING`, latency: `LATENCY`, download: `DOWNLOAD`, recommendation_validation: `VALIDATING` };
     pi(e.complete, e.total, labels[e.stage] || `RUNNING`);
     if (e.message) Yt.textContent = e.message;
+  }),
+  te(`cf:acceleration-status`, (status) => {
+    cdnAccelerationStatus = status || null;
+    renderCFAccelerationStatus();
+    if (status?.message) Q(status.message);
   }),
   te(`path-compare:sample`, (e) => {
     if (!e || e.task_id !== fr) return;
@@ -12450,6 +12543,11 @@ async function ei(e) {
     Wt.focus();
     return;
   }
+  if (cdnRouteMode.value === `proxy` && !cdnUpstreamProxy.value.trim()) {
+    Q(`请输入 Clash 或其他上游代理地址`);
+    cdnUpstreamProxy.focus();
+    return;
+  }
   (ss(me, t), ss(he, n), (ur = K()), (M = null), ti());
   try {
     let result = await i({
@@ -12477,6 +12575,8 @@ async function ei(e) {
       min_speed_mbps: Number(cdnMinSpeed.value) || 0,
       result_limit: Number(cdnResultLimit.value) || 10,
       debug: cdnDebug.checked,
+      route_mode: cdnRouteMode.value,
+      upstream_proxy_url: cdnRouteMode.value === `proxy` ? cdnUpstreamProxy.value.trim() : ``,
     });
     if (result.status === `cancelled`) {
       ((Jt.dataset.state = `idle`),
@@ -12519,12 +12619,14 @@ function ti() {
     (an.disabled = !0),
     (rn.disabled = !0),
     (cdnExportButton.disabled = !0),
+    (cdnGovernanceExportButton.disabled = !0),
     pi(0, 0, `DISCOVERY`),
     ni(!0),
     (S.disabled = !1),
     (S.dataset.taskState = `running`),
     (S.querySelector(`.button-icon`).textContent = `■`),
-    (S.querySelector(`span:last-child`).textContent = `停止测试`));
+    (S.querySelector(`span:last-child`).textContent = `停止测试`),
+    renderCFAccelerationStatus());
 }
 function ni(e) {
   ((Bt.disabled = e),
@@ -12535,6 +12637,9 @@ function ni(e) {
     (Wt.disabled = e),
     (cdnMode.disabled = e),
     (cdnPort.disabled = e),
+    (cdnRouteMode.disabled = e),
+    (cdnUpstreamProxy.disabled = e || cdnRouteMode.value !== `proxy`),
+    (cdnCompatibilityRefresh.disabled = e),
     (cdnPresetV4.disabled = e),
     (cdnPresetV6.disabled = e),
     (cdnTestAll.disabled = e),
@@ -12598,17 +12703,26 @@ function ii(e) {
     si(e.governance || []),
     (an.disabled = !e.best_ip),
     (rn.disabled = t.length === 0),
-    (cdnExportButton.disabled = t.length === 0));
+    (cdnExportButton.disabled = t.length === 0),
+    (cdnGovernanceExportButton.disabled = !canExportCDNGovernance(e)),
+    (cdnGovernanceExportButton.title = e.effective_route === `proxy`
+      ? `代理出口结果不能生成直连治理配置，请切换本机网络后重新测试`
+      : ``),
+    renderCFAccelerationStatus());
+}
+
+function canExportCDNGovernance(result) {
+  return Boolean(result?.best_ip && result?.target_validated && result?.effective_route !== `proxy`);
 }
 
 function resetCDNComparison() {
   cdnComparison.dataset.state = `running`;
   cdnComparisonStatus.textContent = `正在建立当前 DNS 基线`;
-  cdnPathBadge.textContent = `强制直连`;
+  cdnPathBadge.textContent = cdnRouteMode.value === `proxy` ? `现有代理` : cdnRouteMode.value === `direct` ? `本机网络` : `自动出口`;
   cdnPathBadge.className = ``;
   cdnCloudflareBadge.textContent = `Cloudflare 待验证`;
   cdnCloudflareBadge.className = ``;
-  cdnValidationBadge.textContent = cdnMode.value === `http` ? `目标域名验证` : `网络层优选`;
+  cdnValidationBadge.textContent = `智能验证`;
   cdnCurrentIP.textContent = `--`;
   cdnCurrentEvidence.textContent = `正在采样`;
   cdnRecommendedIP.textContent = `--`;
@@ -12636,14 +12750,21 @@ function renderCDNComparison(result) {
       ? `非 Cloudflare 代理`
       : `Cloudflare 未确认`;
   cdnCloudflareBadge.className = verification.verified ? `verified` : `warning`;
-  cdnPathBadge.textContent = path.active_tunnel_interfaces?.length ? `直连 · 隧道路由` : `强制直连`;
-  cdnPathBadge.className = path.active_tunnel_interfaces?.length ? `warning` : ``;
+  const routeLabel = result?.effective_route === `proxy`
+    ? `${result?.proxy_compatibility?.provider || `现有代理`} 出口`
+    : result?.effective_route === `tunnel`
+      ? `TUN 路径`
+      : `本机网络`;
+  cdnPathBadge.textContent = routeLabel;
+  cdnPathBadge.className = result?.effective_route === `tunnel` ? `warning` : result?.effective_route === `proxy` ? `verified` : ``;
+  cdnPathBadge.title = path.message || ``;
   cdnValidationBadge.textContent = validated
     ? `目标域名已验证`
-    : result?.validation_scope === `target_domain`
+    : result?.best_ip
       ? `域名验证未通过`
-      : `网络层优选`;
+      : `等待域名验证`;
   cdnValidationBadge.className = validated ? `verified` : result?.validation_scope === `target_domain` ? `warning` : ``;
+  cdnValidationBadge.title = result?.target_validation || ``;
   if (!comparison.comparable) {
     cdnComparison.dataset.state = `empty`;
     cdnComparisonStatus.textContent = `未建立当前 DNS 基线`;
@@ -12823,11 +12944,169 @@ function syncCDNDownloadOptions() {
 }
 function syncCDNModeOptions() {
   const httpMode = cdnMode.value === `http`;
-  cdnValidationScope.textContent = httpMode ? `目标域名验证` : `网络层优选`;
+  cdnValidationScope.textContent = httpMode ? `全程域名验证` : `智能验证`;
   cdnStatusCodes.disabled = !httpMode;
   cdnColos.disabled = !httpMode;
   cdnStatusCodes.closest(`.target-control`)?.classList.toggle(`disabled`, !httpMode);
   cdnColos.closest(`.target-control`)?.classList.toggle(`disabled`, !httpMode);
+}
+function syncCDNRouteOptions() {
+  const manualProxy = cdnRouteMode.value === `proxy`;
+  cdnUpstreamControl.classList.toggle(`is-visible`, manualProxy);
+  cdnUpstreamProxy.disabled = !manualProxy;
+  const routeCopy = {
+    auto: {
+      label: `自动兼容`,
+      detail: `自动识别本地代理与 TUN，并使用与当前网络一致的出口测试候选 IP。`,
+    },
+    direct: {
+      label: `本机网络`,
+      detail: `绕过显式 HTTP / SOCKS 代理；如果系统存在 TUN，流量仍可能由 TUN 接管。`,
+    },
+    proxy: {
+      label: `现有代理`,
+      detail: `通过指定的 HTTP / HTTPS / SOCKS5 上游测试候选 IP，结果仅代表该代理出口。`,
+    },
+  }[cdnRouteMode.value] || { label: `当前网络`, detail: `` };
+  cdnRouteScope.textContent = routeCopy.label;
+  cdnRouteScopeTip.dataset.tooltip = routeCopy.detail;
+  if (manualProxy && !cdnUpstreamProxy.value.trim() && cdnProxyCompatibility?.suggested_proxy_url) {
+    cdnUpstreamProxy.value = cdnProxyCompatibility.suggested_proxy_url;
+  }
+}
+async function loadCDNProxyCompatibility() {
+  cdnCompatibility.dataset.state = `checking`;
+  cdnCompatibilityTitle.textContent = `正在识别代理环境`;
+  cdnCompatibilityDetail.textContent = `自动选择与当前网络一致的测试出口`;
+  cdnCompatibilityRefresh.disabled = true;
+  try {
+    const result = await detectProxyCompatibility();
+    cdnProxyCompatibility = result || null;
+    renderCDNProxyCompatibility(result || {});
+    if (!cdnUpstreamProxy.value.trim() && result?.suggested_proxy_url) {
+      cdnUpstreamProxy.value = result.suggested_proxy_url;
+    }
+  } catch (error) {
+    console.error(error);
+    cdnCompatibility.dataset.state = `warning`;
+    cdnCompatibilityTitle.textContent = `代理环境识别失败`;
+    cdnCompatibilityDetail.textContent = `本次将使用系统网络出口`;
+  } finally {
+    cdnCompatibilityRefresh.disabled = false;
+    syncCDNRouteOptions();
+  }
+}
+function renderCDNProxyCompatibility(result) {
+  const provider = result.provider || ``;
+  const mode = result.mode || `direct`;
+  const modeLabel = {
+    direct: `本机网络`,
+    system_proxy: `系统代理`,
+    tun: `TUN 路径`,
+    hybrid: `代理 + TUN`,
+  }[mode] || `当前网络`;
+  cdnCompatibility.dataset.state = result.detected ? (result.suggested_proxy_url ? `ready` : `warning`) : `direct`;
+  cdnCompatibilityTitle.textContent = provider ? `${provider} · ${modeLabel}` : modeLabel;
+  cdnCompatibilityDetail.textContent = result.message || result.coverage || `自动选择当前有效出口`;
+  cdnCompatibilityDetail.title = [result.coverage, result.suggested_proxy_url].filter(Boolean).join(` · `);
+}
+
+async function loadCFAccelerationStatus(silent = false) {
+  try {
+    cdnAccelerationStatus = await getCFAccelerationStatus();
+    renderCFAccelerationStatus();
+  } catch (error) {
+    console.error(error);
+    if (!silent) {
+      cdnAccelerationStatus = { state: `error`, message: `读取兼容网关状态失败` };
+      renderCFAccelerationStatus();
+    }
+  }
+}
+
+function canApplyCFAcceleration() {
+  return Boolean(M?.best_ip && M?.target_validated && M?.target_verification?.verified);
+}
+
+function renderCFAccelerationStatus() {
+  const status = cdnAccelerationStatus || { state: `inactive`, message: `未启用 CF IP 加速` };
+  const active = Boolean(status.active);
+  const recoverable = active || Boolean(status.can_restore);
+  const state = cdnAccelerationBusy ? `starting` : status.state || (active ? `active` : `inactive`);
+  cdnAcceleration.dataset.state = state;
+  cdnAccelerationTitle.textContent = active
+    ? `${status.domain || `Cloudflare`} → ${status.preferred_ip || `--`}`
+    : status.recovered
+      ? `已自动恢复原系统代理`
+      : status.message || `未启用 CF IP 加速`;
+  cdnAccelerationDetail.textContent = active
+    ? status.message || `CF 流量使用优选 IP，其他流量保持原出口`
+    : state === `error` || state === `warning`
+      ? status.message || `请检查系统代理设置`
+      : `应用后仅接管系统 HTTP / HTTPS 代理，可随时恢复原设置`;
+  cdnAccelerationMeta.hidden = !active;
+  if (active) {
+    cdnAccelerationRoute.textContent = status.effective_route === `proxy`
+      ? `优选流量 · 现有代理`
+      : status.effective_route === `tunnel`
+        ? `优选流量 · TUN 路径`
+        : `优选流量 · 本机网络`;
+    cdnAccelerationEndpoint.textContent = status.gateway_url || `--`;
+    cdnAccelerationEndpoint.title = status.gateway_url || ``;
+  }
+  cdnAccelerationApply.disabled = cdnAccelerationBusy || !canApplyCFAcceleration();
+  cdnAccelerationApply.textContent = active ? `更新优选` : `应用优选`;
+  cdnAccelerationStop.hidden = !recoverable;
+  cdnAccelerationStop.textContent = active ? `停止并恢复` : `重试恢复`;
+  cdnAccelerationStop.disabled = cdnAccelerationBusy || !recoverable;
+}
+
+async function handleCFAccelerationApply() {
+  if (!canApplyCFAcceleration() || cdnAccelerationBusy) return;
+  cdnAccelerationBusy = true;
+  cdnAccelerationStatus = {
+    ...(cdnAccelerationStatus || {}),
+    state: `starting`,
+    message: `正在验证本地网关并备份系统代理`,
+  };
+  renderCFAccelerationStatus();
+  try {
+    cdnAccelerationStatus = await applyCFAcceleration(M);
+    Q(`CF IP 优选已应用`);
+  } catch (error) {
+    console.error(error);
+    Q(error instanceof Error && error.message ? error.message : `应用 CF IP 优选失败`);
+    try {
+      cdnAccelerationStatus = await getCFAccelerationStatus();
+    } catch {}
+  } finally {
+    cdnAccelerationBusy = false;
+    renderCFAccelerationStatus();
+  }
+}
+
+async function handleCFAccelerationStop() {
+  if ((!cdnAccelerationStatus?.active && !cdnAccelerationStatus?.can_restore) || cdnAccelerationBusy) return;
+  cdnAccelerationBusy = true;
+  cdnAccelerationStatus = {
+    ...cdnAccelerationStatus,
+    state: `stopping`,
+    message: `正在恢复原系统代理`,
+  };
+  renderCFAccelerationStatus();
+  try {
+    cdnAccelerationStatus = await stopCFAcceleration();
+    Q(`原系统代理已恢复`);
+  } catch (error) {
+    console.error(error);
+    Q(error instanceof Error && error.message ? error.message : `恢复系统代理失败`);
+    try {
+      cdnAccelerationStatus = await getCFAccelerationStatus();
+    } catch {}
+  } finally {
+    cdnAccelerationBusy = false;
+    renderCFAccelerationStatus();
+  }
 }
 function pi(e, t, n) {
   let r = Math.max(0, Number(t) || 0),
@@ -12866,9 +13145,9 @@ async function gi() {
   ].join(`
 `);
   try {
-    (await X(e), Q(`hosts 建议已复制，请验证后再应用`));
+    (await X(e), Q(`当前域名配置已复制，请验证后再应用`));
   } catch (e) {
-    (console.error(e), Q(`hosts 建议复制失败`));
+    (console.error(e), Q(`当前域名配置复制失败`));
   }
 }
 async function _i() {
@@ -12892,6 +13171,19 @@ async function exportCDNCSV() {
     cdnExportButton.disabled = false;
   }
 }
+async function exportCDNGovernance() {
+  if (!canExportCDNGovernance(M)) return;
+  cdnGovernanceExportButton.disabled = true;
+  try {
+    const path = await exportCFGovernanceBundle(M);
+    if (path) Q(`全局加速配置包已生成`);
+  } catch (error) {
+    console.error(error);
+    Q(error instanceof Error && error.message ? error.message : `配置包生成失败`);
+  } finally {
+    cdnGovernanceExportButton.disabled = !canExportCDNGovernance(M);
+  }
+}
 function vi(e) {
   let t = z(e);
   let comparison = e.comparison || {};
@@ -12904,7 +13196,7 @@ function vi(e) {
     `模式: ${(e.mode || `tcp`).toUpperCase()} / ${e.port || 443}，下载测速 ${e.download_enabled ? `开启` : `关闭`}`,
     `Cloudflare 代理: ${e.target_verification?.verified ? `已确认` : `未确认`} · DNS 网段 ${e.target_verification?.dns_matched ? `匹配` : `不匹配`} · 响应头 ${e.target_verification?.header_matched ? `匹配` : `不匹配`}${e.target_verification?.cf_ray ? ` · CF-Ray ${e.target_verification.cf_ray}` : ``}`,
     `候选: ${e.completed_count || 0} / ${e.candidate_count || 0}，响应 ${e.responsive_count || 0}，通过筛选 ${e.eligible_count || 0}`,
-    `测试路径: ${e.path_evidence?.mode === `direct` ? `强制直连` : e.path_evidence?.mode || `未知`}${e.path_evidence?.active_tunnel_interfaces?.length ? `（隧道 ${e.path_evidence.active_tunnel_interfaces.join(`, `)} 可能接管）` : ``}`,
+    `测试出口: ${e.effective_route === `proxy` ? `现有代理 ${e.upstream_proxy_url || ``}` : e.effective_route === `tunnel` ? `TUN 路径` : `本机网络`}${e.path_evidence?.active_tunnel_interfaces?.length ? `（${e.path_evidence.active_tunnel_interfaces.join(`, `)}）` : ``}`,
     `验证范围: ${e.target_validated ? `目标域名已验证` : e.validation_scope === `target_domain` ? `目标域名验证未通过` : `仅网络层，未验证目标域名`}`,
     `DNS 基线: ${e.baseline_ip || `未建立`}`,
     `推荐节点: ${e.best_ip || `无`}`,
@@ -15332,6 +15624,9 @@ async function so(e) {
 }
 async function co(e) {
   let t = z(e),
+    routeMode = e.effective_route === `proxy`
+      ? e.requested_route === `auto` ? `system` : `manual`
+      : `direct`,
     n = {
       record_kind: `cdn_optimize`,
       history_id: K(),
@@ -15339,9 +15634,9 @@ async function co(e) {
       message: e.finding?.title || e.message || ``,
       target_url: e.domain || ``,
       checked_at: e.started_at || new Date().toISOString(),
-      proxy_mode: `direct`,
-      proxy_status: `direct`,
-      proxy_url: ``,
+      proxy_mode: routeMode,
+      proxy_status: e.effective_route || `direct`,
+      proxy_url: e.upstream_proxy_url || ``,
       total_ms: Math.round(q(t?.average_latency_ms || t?.p50_total_ms)),
       cdn_optimize: e,
       site_patrol: null,
@@ -16039,6 +16334,8 @@ function So(e) {
       (cdnScheme.value = String(e.target_url || ``).startsWith(`http://`) ? `http` : `https`),
       (cdnMode.value = e.mode || `tcp`),
       (cdnPort.value = e.port || 443),
+      (cdnRouteMode.value = e.requested_route || `auto`),
+      (cdnUpstreamProxy.value = e.upstream_proxy_url || ``),
       (cdnPresetV4.checked = (e.results || []).some((item) => item.candidate?.source === `cloudflare_ipv4`)),
       (cdnPresetV6.checked = (e.results || []).some((item) => item.candidate?.source === `cloudflare_ipv6`)),
       (cdnDownloadEnabled.checked = Boolean(e.download_enabled)),
@@ -16051,7 +16348,9 @@ function So(e) {
     ([4, 5, 10].includes(t) && ((Ht.value = String(t)), syncStyledSelect(Ht)),
       syncStyledSelect(cdnScheme),
       syncStyledSelect(cdnMode),
+      syncStyledSelect(cdnRouteMode),
       syncCDNModeOptions(),
+      syncCDNRouteOptions(),
       syncCDNDownloadOptions(),
       fi(),
       R(`cdn-optimize`),

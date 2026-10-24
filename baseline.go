@@ -368,7 +368,10 @@ func detectProxyListeners(ctx context.Context, targetHost string) []ProxyListene
 			}
 		}
 	}
-	for _, endpoint := range []string{"127.0.0.1:7890", "127.0.0.1:7891", "127.0.0.1:1080", "127.0.0.1:8080", "127.0.0.1:10809"} {
+	for _, endpoint := range []string{
+		"127.0.0.1:7890", "127.0.0.1:7891", "127.0.0.1:7892", "127.0.0.1:7893", "127.0.0.1:7897",
+		"127.0.0.1:1080", "127.0.0.1:8080", "127.0.0.1:10809",
+	} {
 		if _, exists := endpoints[endpoint]; !exists {
 			endpoints[endpoint] = "常见端口"
 		}

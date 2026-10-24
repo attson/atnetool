@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const (
@@ -30,6 +32,7 @@ type App struct {
 	tasks         map[string]context.CancelFunc
 	historyMu     sync.Mutex
 	historyStore  *historyStore
+	acceleration  *cfAccelerationManager
 }
 
 // DiagOptions controls the target and how its connection reaches the network.
@@ -89,14 +92,47 @@ type DiagResult struct {
 }
 
 func NewApp() *App {
-	return &App{tasks: make(map[string]context.CancelFunc)}
+	return &App{tasks: make(map[string]context.CancelFunc), acceleration: newCFAccelerationManager()}
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	if a.acceleration != nil {
+		recoveryContext, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+		a.acceleration.RecoverStale(recoveryContext)
+	}
+}
+
+func (a *App) beforeClose(context.Context) bool {
+	if a.acceleration == nil {
+		return false
+	}
+	status := a.acceleration.Status()
+	if !status.Active && !status.CanRestore {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	status, err := a.acceleration.Stop(ctx)
+	if err != nil {
+		if a.ctx != nil {
+			wailsruntime.EventsEmit(a.ctx, "cf:acceleration-status", status)
+		}
+		return true
+	}
+	return false
 }
 
 func (a *App) shutdown(context.Context) {
+	if a.acceleration != nil {
+		status := a.acceleration.Status()
+		if status.Active || status.CanRestore {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			_, _ = a.acceleration.Stop(ctx)
+			cancel()
+		}
+	}
 	a.tasksMu.Lock()
 	defer a.tasksMu.Unlock()
 	for id, cancel := range a.tasks {

@@ -73,6 +73,8 @@ type CDNOptimizeOptions struct {
 	MinSpeedMBps      float64  `json:"min_speed_mbps"`
 	ResultLimit       int      `json:"result_limit"`
 	Debug             bool     `json:"debug"`
+	RouteMode         string   `json:"route_mode,omitempty"`
+	UpstreamProxyURL  string   `json:"upstream_proxy_url,omitempty"`
 }
 
 type CDNCandidate struct {
@@ -241,12 +243,17 @@ type CDNOptimizeResult struct {
 	Governance          []CDNGovernanceAdvice `json:"governance"`
 	Results             []CDNProbeResult      `json:"results"`
 	Environment         NetworkEnvironment    `json:"environment"`
+	RequestedRoute      string                `json:"requested_route"`
+	EffectiveRoute      string                `json:"effective_route"`
+	UpstreamProxyURL    string                `json:"upstream_proxy_url,omitempty"`
+	ProxyCompatibility  ProxyCompatibility    `json:"proxy_compatibility"`
 }
 
 // RunCDNOptimize implements the CloudflareSpeedTest-style two-stage pipeline:
 // generate candidates from IP/CIDR ranges, filter them by repeated TCP/HTTP
 // latency probes, then optionally measure download throughput for the best
-// candidates. All sockets are direct and never inherit the system proxy.
+// candidates. Candidate sockets use the explicitly selected route and never
+// inherit an unreported process proxy.
 func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 	started := time.Now()
 	taskID := strings.TrimSpace(options.TaskID)
@@ -282,12 +289,21 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 	result.Port = settings.Port
 	result.DownloadEnabled = settings.DownloadEnabled
 	result.DownloadURL = settings.DownloadURL
+	result.ProxyCompatibility = a.DetectProxyCompatibility()
+	routeOptions := options
+	routeOptions.UpstreamProxyURL = preserveSystemProxyCredentials(options.UpstreamProxyURL, targetURL, result.ProxyCompatibility)
+	if err := configureCDNRoute(routeOptions, &settings, &result); err != nil {
+		result.Status = "failed"
+		result.Message = err.Error()
+		result.FinishedAt = time.Now().Format(time.RFC3339)
+		return result
+	}
 	if settings.Mode == "http" {
 		result.ValidationScope = "target_domain"
 		result.TargetValidation = "HTTPing 使用目标域名的 Host、SNI、路径与状态码验证候选节点"
 	} else {
-		result.ValidationScope = "network_layer"
-		result.TargetValidation = "TCPing 仅评价网络层可达性与质量，未验证目标域名的业务配置"
+		result.ValidationScope = "target_domain"
+		result.TargetValidation = "TCPing 完成网络层排序后，将自动使用目标域名验证推荐节点"
 	}
 
 	baseContext, cancel := context.WithCancel(a.baseContext())
@@ -312,7 +328,7 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 	}
 	a.emitCDNOptimizeProgress(CDNOptimizeProgress{TaskID: taskID, Stage: "verification", Message: "正在验证目标域名的 Cloudflare 代理状态"})
 	verificationContext, stopVerification := context.WithTimeout(baseContext, 6*time.Second)
-	result.TargetVerification = verifyCDNTarget(verificationContext, targetURL, dnsIPs)
+	result.TargetVerification = verifyCDNTargetWithProxy(verificationContext, targetURL, dnsIPs, settings.UpstreamProxy)
 	stopVerification()
 	if baseContext.Err() != nil {
 		result.Status = "cancelled"
@@ -334,8 +350,8 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 		}
 		result.Finding = PatrolFinding{Code: "cloudflare_verification_failed", Level: level, Title: title, Message: result.TargetVerification.Message}
 		result.Governance = []CDNGovernanceAdvice{{Action: "verify_cloudflare", Title: "检查 Cloudflare 代理状态", Detail: "确认域名 DNS 记录已开启代理，并检查 A/AAAA、CNAME、证书和访问规则后重新测试。"}}
-		result.Environment = captureNetworkEnvironment(DiagResult{ProxyMode: proxyModeDirect})
-		result.PathEvidence = buildCDNPathEvidence(domain, result.Environment)
+		result.Environment = captureNetworkEnvironment(cdnRouteEnvironmentDiagnosis(result, ""))
+		result.PathEvidence = buildCDNPathEvidence(domain, result.Environment, result.EffectiveRoute, result.UpstreamProxyURL)
 		return result
 	}
 	candidates, ranges, warnings, truncated := buildCDNCandidates(dnsIPs, options, settings)
@@ -347,8 +363,8 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 		result.Status = "failed"
 		result.Message = "没有生成可测试的公网候选 IP，请启用预置网段或填写 IP / CIDR"
 		result.FinishedAt = time.Now().Format(time.RFC3339)
-		result.Environment = captureNetworkEnvironment(DiagResult{ProxyMode: proxyModeDirect})
-		result.PathEvidence = buildCDNPathEvidence(domain, result.Environment)
+		result.Environment = captureNetworkEnvironment(cdnRouteEnvironmentDiagnosis(result, ""))
+		result.PathEvidence = buildCDNPathEvidence(domain, result.Environment, result.EffectiveRoute, result.UpstreamProxyURL)
 		return result
 	}
 	a.emitCDNOptimizeProgress(CDNOptimizeProgress{
@@ -361,6 +377,9 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 	}
 	jobs := make(chan candidateJob)
 	workers := boundedCDNWorkers(options.Concurrency, len(candidates))
+	if settings.UpstreamProxy != nil && workers > 100 {
+		workers = 100
+	}
 	resultBuffer := workers * 2
 	if resultBuffer > 1024 {
 		resultBuffer = 1024
@@ -418,6 +437,12 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 		runCDNDownloadStage(baseContext, a, &result, settings)
 	}
 	finaliseCDNRanking(&result)
+	if baseContext.Err() == nil && result.BestIP != "" {
+		a.emitCDNOptimizeProgress(CDNOptimizeProgress{
+			TaskID: taskID, Stage: "recommendation_validation", Message: "正在验证推荐 IP 与目标域名的兼容性", Complete: 0, Total: 1,
+		})
+		validateCDNRecommendation(baseContext, &result, targetURL, domain, settings.Port, settings.UpstreamProxy)
+	}
 	if baseContext.Err() != nil {
 		result.Status = "cancelled"
 		result.Message = "Cloudflare IP 优选已停止"
@@ -427,11 +452,9 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 	}
 	result.DurationMS = durationMS(time.Since(started))
 	result.FinishedAt = time.Now().Format(time.RFC3339)
-	result.Environment = captureNetworkEnvironment(DiagResult{
-		ProxyMode: proxyModeDirect,
-		ClientIP:  firstCDNLocalIP(result.Results),
-	})
-	result.PathEvidence = buildCDNPathEvidence(domain, result.Environment)
+	result.Environment = captureNetworkEnvironment(cdnRouteEnvironmentDiagnosis(result, firstCDNLocalIP(result.Results)))
+	result.PathEvidence = buildCDNPathEvidence(domain, result.Environment, result.EffectiveRoute, result.UpstreamProxyURL)
+	applyCDNRouteGovernance(&result)
 	return result
 }
 
@@ -451,6 +474,7 @@ type cdnOptimizeSettings struct {
 	ResultLimit      int
 	IPv6Samples      int
 	Debug            bool
+	UpstreamProxy    *url.URL
 }
 
 func normaliseCDNOptimizeOptions(options CDNOptimizeOptions) (cdnOptimizeSettings, error) {
@@ -535,6 +559,10 @@ func normaliseCDNOptimizeOptions(options CDNOptimizeOptions) (cdnOptimizeSetting
 }
 
 func verifyCDNTarget(ctx context.Context, targetURL string, dnsIPs []string) CDNTargetVerification {
+	return verifyCDNTargetWithProxy(ctx, targetURL, dnsIPs, nil)
+}
+
+func verifyCDNTargetWithProxy(ctx context.Context, targetURL string, dnsIPs []string, upstreamProxy *url.URL) CDNTargetVerification {
 	verification := CDNTargetVerification{Status: "checking", Message: "正在验证 Cloudflare 代理状态"}
 	for _, rawIP := range dnsIPs {
 		if isCloudflareEdgeIP(net.ParseIP(rawIP)) {
@@ -549,7 +577,7 @@ func verifyCDNTarget(ctx context.Context, targetURL string, dnsIPs []string) CDN
 		request.Header.Set("Cache-Control", "no-cache")
 		request.Header.Set("Range", "bytes=0-0")
 		transport := http.DefaultTransport.(*http.Transport).Clone()
-		transport.Proxy = nil
+		transport.Proxy = proxyFunction(upstreamProxy)
 		transport.DisableKeepAlives = true
 		defer transport.CloseIdleConnections()
 		client := &http.Client{
@@ -823,7 +851,7 @@ func runCDNLatencyCandidate(parent context.Context, index int, candidate CDNCand
 		if settings.Mode == "http" {
 			sample = runCDNHTTPing(parent, targetURL, domain, candidate.IP, sequence, settings)
 		} else {
-			sample = runCDNTCPing(parent, candidate.IP, sequence, settings.Port)
+			sample = runCDNTCPingWithProxy(parent, candidate.IP, sequence, settings.Port, settings.UpstreamProxy)
 		}
 		result.Samples = append(result.Samples, sample)
 		if settings.Debug && !sample.Success && sample.Error != "" {
@@ -859,11 +887,15 @@ func runCDNLatencyCandidate(parent context.Context, index int, candidate CDNCand
 }
 
 func runCDNTCPing(parent context.Context, candidateIP string, sequence, port int) CDNProbeSample {
+	return runCDNTCPingWithProxy(parent, candidateIP, sequence, port, nil)
+}
+
+func runCDNTCPingWithProxy(parent context.Context, candidateIP string, sequence, port int, upstreamProxy *url.URL) CDNProbeSample {
 	sample := CDNProbeSample{Sequence: sequence, Message: "TCP 连接失败", FailedStage: "tcp"}
 	ctx, cancel := context.WithTimeout(parent, cdnProbeTimeout)
 	defer cancel()
 	started := time.Now()
-	connection, err := (&net.Dialer{}).DialContext(ctx, "tcp", net.JoinHostPort(candidateIP, strconv.Itoa(port)))
+	connection, err := dialCDNEndpoint(ctx, upstreamProxy, net.JoinHostPort(candidateIP, strconv.Itoa(port)))
 	sample.TotalMS = durationMS(time.Since(started))
 	sample.TCPConnectMS = sample.TotalMS
 	if err != nil {
@@ -880,7 +912,7 @@ func runCDNTCPing(parent context.Context, candidateIP string, sequence, port int
 }
 
 func runCDNHTTPing(parent context.Context, targetURL, domain, candidateIP string, sequence int, settings cdnOptimizeSettings) CDNProbeSample {
-	sample := runCDNProbeWithSettings(parent, targetURL, domain, candidateIP, sequence, settings.Port, cdnProbeTimeout, false)
+	sample := runCDNProbeWithRoute(parent, targetURL, domain, candidateIP, sequence, settings.Port, cdnProbeTimeout, false, settings.UpstreamProxy)
 	if sample.Success {
 		if _, allowed := settings.HTTPStatusCodes[sample.StatusCode]; !allowed {
 			sample.Success = false
@@ -1022,18 +1054,16 @@ func runCDNDownloadProbe(parent context.Context, candidateIP string, settings cd
 		return 0, 0, 0, "", "", 0, err
 	}
 	request.Header.Set("User-Agent", "ATNetool/1.0")
+	downloadHost := request.URL.Hostname()
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = nil
 	transport.DisableKeepAlives = true
 	transport.ForceAttemptHTTP2 = true
-	dialer := &net.Dialer{Timeout: 5 * time.Second, KeepAlive: -1}
-	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		_, port, splitErr := net.SplitHostPort(address)
-		if splitErr != nil || settings.Port != 443 {
-			port = strconv.Itoa(settings.Port)
-		}
-		return dialer.DialContext(ctx, network, net.JoinHostPort(candidateIP, port))
+	transport.TLSClientConfig = &tls.Config{ServerName: downloadHost, MinVersion: tls.VersionTLS12}
+	downloadPort := 0
+	if settings.Port != 443 {
+		downloadPort = settings.Port
 	}
+	configureCDNCandidateTransport(transport, settings.UpstreamProxy, candidateIP, downloadPort)
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport}
 	started := time.Now()
@@ -1119,6 +1149,10 @@ func runCDNProbe(parent context.Context, targetURL, domain, candidateIP string, 
 }
 
 func runCDNProbeWithSettings(parent context.Context, targetURL, domain, candidateIP string, sequence, port int, timeout time.Duration, readBody bool) CDNProbeSample {
+	return runCDNProbeWithRoute(parent, targetURL, domain, candidateIP, sequence, port, timeout, readBody, nil)
+}
+
+func runCDNProbeWithRoute(parent context.Context, targetURL, domain, candidateIP string, sequence, port int, timeout time.Duration, readBody bool, upstreamProxy *url.URL) CDNProbeSample {
 	sample := CDNProbeSample{Sequence: sequence, Message: "候选节点未响应"}
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
@@ -1186,23 +1220,11 @@ func runCDNProbeWithSettings(parent context.Context, targetURL, domain, candidat
 	request.Header.Set("User-Agent", "ATNetool/1.0")
 	request.Header.Set("Cache-Control", "no-cache")
 	request.Header.Set("Range", fmt.Sprintf("bytes=0-%d", cdnResponseLimit-1))
-
-	dialer := &net.Dialer{Timeout: 5 * time.Second, KeepAlive: -1}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = nil
 	transport.DisableKeepAlives = true
 	transport.ForceAttemptHTTP2 = true
 	transport.TLSClientConfig = &tls.Config{ServerName: domain, MinVersion: tls.VersionTLS12}
-	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
-		_, targetPort, splitErr := net.SplitHostPort(address)
-		if splitErr != nil {
-			targetPort = "443"
-		}
-		if port > 0 {
-			targetPort = strconv.Itoa(port)
-		}
-		return dialer.DialContext(ctx, network, net.JoinHostPort(candidateIP, targetPort))
-	}
+	configureCDNCandidateTransport(transport, upstreamProxy, candidateIP, port)
 	defer transport.CloseIdleConnections()
 	client := &http.Client{
 		Transport: transport,
@@ -1403,7 +1425,6 @@ func finaliseModernCDNRecommendation(result *CDNOptimizeResult, best, baseline *
 		}
 	}
 	result.Comparison = buildCDNOptimizeComparison(baseline, best)
-	result.TargetValidated = result.ValidationScope == "target_domain" && best.SuccessCount > 0
 	result.Confidence = cdnRecommendationConfidence(*best, baseline)
 	if result.DownloadEnabled && best.DownloadSpeedMBps > 0 {
 		result.Finding = PatrolFinding{
@@ -1421,6 +1442,69 @@ func finaliseModernCDNRecommendation(result *CDNOptimizeResult, best, baseline *
 		{Action: "canary", Title: "小范围灰度使用", Detail: "Anycast 路径会随运营商和时段变化，先在单台设备或小流量范围观察，不自动修改系统 hosts。"},
 		{Action: "retest", Title: "在高峰时段复测", Detail: "保存本次结果并在网络较慢时使用同一参数复测，优先选择多次排名稳定的节点。"},
 	}
+}
+
+func validateCDNRecommendation(ctx context.Context, result *CDNOptimizeResult, targetURL, domain string, port int, upstreamProxy *url.URL) {
+	if result == nil || strings.TrimSpace(result.BestIP) == "" {
+		return
+	}
+	sample := runCDNProbeWithRoute(ctx, targetURL, domain, result.BestIP, 1, port, 5*time.Second, false, upstreamProxy)
+	applyCDNRecommendationValidation(result, sample)
+}
+
+func applyCDNRecommendationValidation(result *CDNOptimizeResult, sample CDNProbeSample) {
+	if result == nil {
+		return
+	}
+	cloudflareVerified := sample.CFRay != "" || strings.EqualFold(sample.CDNProvider, "Cloudflare")
+	result.TargetValidated = sample.Success && cloudflareVerified
+
+	best := bestCDNProbeByIP(result.Results, result.BestIP)
+	if best != nil {
+		if sample.StatusCode > 0 {
+			best.StatusCode = sample.StatusCode
+		}
+		if sample.CFRay != "" {
+			best.CFRay = sample.CFRay
+			best.VerifiedCloudflare = true
+		}
+		if sample.CFColo != "" {
+			best.CFColo = sample.CFColo
+		}
+		if sample.CDNProvider != "" {
+			best.CDNProvider = sample.CDNProvider
+		}
+	}
+
+	if result.TargetValidated {
+		result.TargetValidation = fmt.Sprintf("推荐 IP 已通过目标域名的 TLS、Host 与 Cloudflare 响应验证（HTTP %d）", sample.StatusCode)
+		return
+	}
+	detail := sample.Message
+	if sample.Error != "" {
+		detail = sample.Error
+	}
+	if sample.Success && !cloudflareVerified {
+		detail = "响应中未发现 CF-Ray 或 Cloudflare 边缘标识"
+	}
+	result.TargetValidation = "推荐 IP 未通过目标域名验证：" + detail
+	result.Confidence = "low"
+	result.Finding = PatrolFinding{
+		Code: "recommended_edge_validation_failed", Level: "warning", Title: "推荐 IP 仅通过网络层测试",
+		Message: "该节点未通过当前域名的业务验证，暂不建议生成或应用全局加速配置。",
+	}
+	result.Governance = append([]CDNGovernanceAdvice{{
+		Action: "retest_http", Title: "切换 HTTPing 后重新优选", Detail: "使用目标域名的 Host、SNI 与路径重新筛选候选节点，确认业务响应和 Cloudflare 标识。",
+	}}, result.Governance...)
+}
+
+func bestCDNProbeByIP(results []CDNProbeResult, ip string) *CDNProbeResult {
+	for index := range results {
+		if results[index].Candidate.IP == ip {
+			return &results[index]
+		}
+	}
+	return nil
 }
 
 func buildCDNOptimizeComparison(baseline, best *CDNProbeResult) CDNOptimizeComparison {
@@ -1468,11 +1552,11 @@ func cdnRecommendationConfidence(best CDNProbeResult, baseline *CDNProbeResult) 
 	return "low"
 }
 
-func buildCDNPathEvidence(domain string, environment NetworkEnvironment) CDNPathEvidence {
+func buildCDNPathEvidence(domain string, environment NetworkEnvironment, effectiveRoute, upstreamProxy string) CDNPathEvidence {
 	evidence := CDNPathEvidence{
-		Mode:            proxyModeDirect,
+		Mode:            effectiveRoute,
 		HostsApplicable: true,
-		Message:         "候选连接已绕过显式 HTTP/SOCKS 代理，结果可用于 hosts 或 DNS 治理",
+		Message:         "候选连接使用系统网络出口，结果适用于当前出口",
 	}
 	evidence.SystemProxyURL = configuredSystemProxyEndpoint(domain)
 	evidence.SystemProxyConfigured = evidence.SystemProxyURL != ""
@@ -1481,15 +1565,18 @@ func buildCDNPathEvidence(domain string, environment NetworkEnvironment) CDNPath
 			continue
 		}
 		evidence.TunnelDetected = true
-		if item.Active {
-			evidence.ActiveTunnelInterfaces = appendUnique(evidence.ActiveTunnelInterfaces, item.Name)
-		}
+		evidence.ActiveTunnelInterfaces = appendUnique(evidence.ActiveTunnelInterfaces, item.Name)
 	}
-	if len(evidence.ActiveTunnelInterfaces) > 0 {
+	if upstreamProxy != "" {
 		evidence.HostsApplicable = false
-		evidence.Message = fmt.Sprintf("显式代理已绕过，但活动隧道 %s 仍可能接管流量；建议关闭隧道后复测", strings.Join(evidence.ActiveTunnelInterfaces, ", "))
+		evidence.Message = fmt.Sprintf("候选测试经上游代理 %s 执行，优选结果仅适用于该代理出口", upstreamProxy)
+	} else if len(evidence.ActiveTunnelInterfaces) > 0 {
+		evidence.HostsApplicable = false
+		evidence.Message = fmt.Sprintf("活动隧道 %s 可能接管候选连接，结果适用于当前 TUN 路径", strings.Join(evidence.ActiveTunnelInterfaces, ", "))
 	} else if evidence.SystemProxyConfigured {
-		evidence.Message = fmt.Sprintf("检测到系统代理 %s，但本次候选连接已强制直连；结果仅适用于直连治理", evidence.SystemProxyURL)
+		evidence.Message = fmt.Sprintf("检测到系统代理 %s，但本次候选连接使用本机网络出口", evidence.SystemProxyURL)
+	} else {
+		evidence.Message = "候选连接已绕过显式 HTTP/SOCKS 代理，结果适用于当前本机出口"
 	}
 	return evidence
 }

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,6 +20,9 @@ func platformProxyForRequest(request *http.Request) (*url.URL, error) {
 	}
 	defer key.Close()
 
+	if autoConfigURL, _, readErr := key.GetStringValue("AutoConfigURL"); readErr == nil && strings.TrimSpace(autoConfigURL) != "" {
+		return nil, fmt.Errorf("Windows 自动代理配置（PAC）暂不支持作为上游，请改用手动代理出口")
+	}
 	enabled, _, err := key.GetIntegerValue("ProxyEnable")
 	if err != nil || enabled == 0 {
 		return nil, nil
