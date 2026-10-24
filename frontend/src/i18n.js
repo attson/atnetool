@@ -6,6 +6,31 @@ const TRANSLATED_ATTRIBUTES = ['aria-label', 'title', 'data-tooltip', 'placehold
 // keep producing one canonical message. The UI layer translates both initial
 // markup and content inserted while a task is running.
 const EN = {
+  '检查软件更新': 'Check for updates',
+  '当前构建未启用自动更新': 'Automatic updates are disabled in this build',
+  '正在检查更新': 'Checking for updates',
+  '正在连接 GitHub Release': 'Connecting to GitHub Releases',
+  '当前已是最新版本': 'You are using the latest version',
+  '下载后会验证发布签名与文件完整性': 'The release signature and file integrity will be verified after download',
+  '下载更新': 'Download Update',
+  '检查中': 'Checking',
+  '下载中': 'Downloading',
+  '取消': 'Cancel',
+  '隐藏': 'Hide',
+  '稍后': 'Later',
+  '正在验证更新': 'Verifying update',
+  '正在核对 Ed25519 签名与 SHA-256': 'Verifying the Ed25519 signature and SHA-256 checksum',
+  '验证中': 'Verifying',
+  '验证通过，安装时应用将退出并自动重启': 'Verification passed. The app will quit and restart during installation',
+  '安装并重启': 'Install & Restart',
+  '正在安装更新': 'Installing update',
+  '正在安全退出并准备重新启动': 'Safely closing the app and preparing to restart',
+  '正在重启': 'Restarting',
+  '请稍候': 'Please wait',
+  '更新未完成': 'Update not completed',
+  '请检查网络后重试': 'Check your network connection and try again',
+  '重新检查': 'Check Again',
+  '更新操作失败': 'Update operation failed',
   '诊断中心 · 综合总览': 'Diagnostics · Overview',
   '一次采集本地网络、DNS、端口、服务链路与代理路径': 'Inspect local network, DNS, ports, service route, and proxy path in one run',
   '诊断中心 · 单目标': 'Diagnostics · Single Target',
@@ -578,6 +603,8 @@ const EN = {
 // A small set of legacy, all-caps chrome labels used English as decoration in
 // the original Chinese UI. They now follow the selected language as well.
 const ZH = {
+  'VERSION': '版本',
+  'DEV': '开发',
   'NETWORK ASSISTANT': '网络助手',
   'LOCAL ENGINE': '本地引擎',
   'READY': '就绪',
@@ -602,6 +629,15 @@ const ZH = {
 };
 
 const PHRASES = {
+  '发现新版本': 'New version available',
+  '正在下载': 'Downloading',
+  '已准备好': 'is ready',
+  '检查 GitHub Release 失败': 'Failed to check GitHub Releases',
+  '下载更新校验文件失败': 'Failed to download update verification files',
+  '下载或验证更新校验文件失败': 'Failed to download or verify update verification files',
+  'SHA256SUMS 签名验证失败': 'SHA256SUMS signature verification failed',
+  '更新文件 SHA-256 校验失败': 'Update file SHA-256 verification failed',
+  '下载更新文件失败': 'Failed to download the update file',
   '检测到本地代理与 TUN，可按现有代理出口进行兼容优选': 'Local proxy and TUN detected; compatible selection can use the existing proxy egress',
   '检测到可串联的本地代理': 'A chainable local proxy was detected',
   '检测到 TUN，但没有发现可用的本地代理端口': 'A TUN was detected, but no usable local proxy port was found',

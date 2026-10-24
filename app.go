@@ -33,6 +33,7 @@ type App struct {
 	historyMu     sync.Mutex
 	historyStore  *historyStore
 	acceleration  *cfAccelerationManager
+	updater       *updateManager
 }
 
 // DiagOptions controls the target and how its connection reaches the network.
@@ -92,11 +93,16 @@ type DiagResult struct {
 }
 
 func NewApp() *App {
-	return &App{tasks: make(map[string]context.CancelFunc), acceleration: newCFAccelerationManager()}
+	return &App{
+		tasks:        make(map[string]context.CancelFunc),
+		acceleration: newCFAccelerationManager(),
+		updater:      newUpdateManager(),
+	}
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.startUpdater(ctx)
 	if a.acceleration != nil {
 		recoveryContext, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
@@ -125,6 +131,9 @@ func (a *App) beforeClose(context.Context) bool {
 }
 
 func (a *App) shutdown(context.Context) {
+	if a.updater != nil {
+		a.updater.Cancel()
+	}
 	if a.acceleration != nil {
 		status := a.acceleration.Status()
 		if status.Active || status.CanRestore {
