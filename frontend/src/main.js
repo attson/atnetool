@@ -44,6 +44,9 @@ function n() {
 function exportHistoryReport(e) {
   return window.go.main.App.ExportHistoryReport(e);
 }
+function importDiagnosisReport() {
+  return window.go.main.App.ImportDiagnosisReport();
+}
 function r(e) {
   return window.go.main.App.MigrateLegacyHistory(e);
 }
@@ -10981,9 +10984,37 @@ Ce.innerHTML = `
                     </div>
                     <div class="history-header-actions">
                         <span class="history-count" id="history-count">0 RECORDS</span>
+                        <button class="history-import" id="history-import-button" type="button">
+                            <span aria-hidden="true">＋</span><span>导入报告</span>
+                        </button>
                         <button class="quiet-button" id="clear-history-button" type="button">清空历史</button>
                     </div>
                 </div>
+
+                <section class="history-import-preview" id="history-import-preview" hidden aria-labelledby="history-import-title">
+                    <div class="history-import-heading">
+                        <div class="history-import-source">
+                            <span class="history-import-badge">IMPORTED · READ ONLY</span>
+                            <h3 id="history-import-title">离线报告复盘</h3>
+                            <p id="history-import-filename"></p>
+                        </div>
+                        <button class="history-import-close" id="history-import-close" type="button" aria-label="关闭导入预览">×</button>
+                    </div>
+                    <div class="history-import-meta" id="history-import-meta"></div>
+                    <div class="history-import-conclusion" id="history-import-conclusion"></div>
+                    <div class="history-import-metrics" id="history-import-metrics"></div>
+                    <div class="history-import-warnings" id="history-import-warnings" hidden></div>
+                    <div class="history-import-actions">
+                        <button class="history-import-action" id="history-import-detail-button" type="button">查看完整结果</button>
+                        <button class="history-import-action" id="history-import-compare-button" type="button">与本机记录对比</button>
+                        <button class="history-import-save" id="history-import-save-button" type="button">保存到本地历史</button>
+                    </div>
+                    <div class="history-import-comparison" id="history-import-comparison" hidden></div>
+                    <div class="history-import-detail" id="history-import-detail" hidden>
+                        <div><span>VALIDATED EVIDENCE</span><strong id="history-import-file-count"></strong></div>
+                        <pre id="history-import-json"></pre>
+                    </div>
+                </section>
 
                 <div class="history-empty" id="history-empty">
                     <strong>暂无本地检测记录</strong>
@@ -11143,6 +11174,21 @@ var Pe = document.querySelector(`#trace-list`),
   nt = document.querySelector(`#history-list`),
   rt = document.querySelector(`#compare-button`),
   it = document.querySelector(`#clear-history-button`),
+  historyImportButton = document.querySelector(`#history-import-button`),
+  historyImportPreview = document.querySelector(`#history-import-preview`),
+  historyImportFilename = document.querySelector(`#history-import-filename`),
+  historyImportMeta = document.querySelector(`#history-import-meta`),
+  historyImportConclusion = document.querySelector(`#history-import-conclusion`),
+  historyImportMetrics = document.querySelector(`#history-import-metrics`),
+  historyImportWarnings = document.querySelector(`#history-import-warnings`),
+  historyImportDetailButton = document.querySelector(`#history-import-detail-button`),
+  historyImportCompareButton = document.querySelector(`#history-import-compare-button`),
+  historyImportSaveButton = document.querySelector(`#history-import-save-button`),
+  historyImportClose = document.querySelector(`#history-import-close`),
+  historyImportComparison = document.querySelector(`#history-import-comparison`),
+  historyImportDetail = document.querySelector(`#history-import-detail`),
+  historyImportFileCount = document.querySelector(`#history-import-file-count`),
+  historyImportJSON = document.querySelector(`#history-import-json`),
   at = document.querySelector(`#comparison`),
   ot = document.querySelector(`#comparison-context`),
   st = document.querySelector(`#comparison-table`),
@@ -11515,7 +11561,10 @@ var O = null,
   styledSelectOpen = null,
   F = { scale: 1, offsetX: 0, offsetY: 0 },
   I = go(),
-  L = new Set();
+  L = new Set(),
+  importedReport = null,
+  importedHistoryRecord = null,
+  importedReportSaved = !1;
 ((m.value = as()),
   (dt.value = m.value),
   (Bt.value = os(me)),
@@ -11649,6 +11698,11 @@ var Or = [
   nt.addEventListener(`click`, So),
   rt.addEventListener(`click`, Co),
   it.addEventListener(`click`, wo),
+  historyImportButton.addEventListener(`click`, handleHistoryImport),
+  historyImportDetailButton.addEventListener(`click`, toggleImportedReportDetail),
+  historyImportCompareButton.addEventListener(`click`, compareImportedReport),
+  historyImportSaveButton.addEventListener(`click`, saveImportedReport),
+  historyImportClose.addEventListener(`click`, closeImportedReport),
   ct.addEventListener(`click`, () => {
     at.hidden = !0;
   }),
@@ -11664,6 +11718,7 @@ window.addEventListener(`atnetool:localechange`, () => {
   document.querySelectorAll(`select`).forEach((select) => syncStyledSelect(select));
   if (!_.hidden && N.length) requestAnimationFrame(H);
   if (A.length) requestAnimationFrame(() => da(A));
+  if (importedReport) renderImportedReportPreview();
   if (!document.querySelector(`#history-trends`)?.hidden) renderHistoryTrends();
 });
 
@@ -16267,6 +16322,160 @@ async function _o() {
       vo(),
       e.length > 0 && Q(`后端历史不可用，暂时使用浏览器本地记录`));
   }
+}
+function importedReportMetricLabel(key) {
+  return {
+    dns_lookup_ms: `DNS 解析`,
+    tcp_connect_ms: `TCP 连接`,
+    tls_handshake_ms: `TLS 握手`,
+    ttfb_ms: `TTFB`,
+    total_ms: `总耗时`,
+    duration_ms: `检测耗时`,
+    availability_percent: `可用率`,
+    jitter_ms: `抖动`,
+    success_count: `成功数`,
+    total_count: `总数`,
+    responsive_count: `有效节点`,
+    best_ip: `最佳 IP`,
+    improvement_percent: `改善幅度`,
+    open_count: `开放端口`,
+  }[key] || key.replaceAll(`_`, ` `).toUpperCase();
+}
+function importedReportMetricValue(key, value) {
+  if (value === null || value === undefined || value === ``) return `--`;
+  if (key.endsWith(`_ms`)) return `${Number(value).toLocaleString(getLocale())} ms`;
+  if (key.endsWith(`_percent`)) return `${Number(value).toFixed(1)}%`;
+  return String(value);
+}
+function findImportedComparisonRecord() {
+  if (!importedHistoryRecord) return null;
+  let sameKind = I.filter((record) => record.record_kind === importedHistoryRecord.record_kind && record.history_id !== importedHistoryRecord.history_id),
+    target = getTrendTargetIdentity(importedHistoryRecord).toLowerCase(),
+    sameTarget = sameKind.filter((record) => getTrendTargetIdentity(record).toLowerCase() === target);
+  return (sameTarget.length ? sameTarget : sameKind)
+    .sort((left, right) => new Date(right.checked_at) - new Date(left.checked_at))[0] || null;
+}
+function renderImportedReportPreview() {
+  if (!importedReport || !importedHistoryRecord) {
+    historyImportPreview.hidden = !0;
+    return;
+  }
+  let summary = importedReport.summary || {},
+    health = Eo(importedHistoryRecord),
+    metrics = Object.entries(summary.metrics || {}).slice(0, 6),
+    comparisonRecord = findImportedComparisonRecord();
+  historyImportPreview.dataset.health = health;
+  historyImportPreview.hidden = !1;
+  historyImportFilename.textContent = importedReport.filename || `ATNetool report.zip`;
+  historyImportFilename.title = importedReport.filename || ``;
+  historyImportMeta.innerHTML = `
+    <div><span>检测类型</span><strong>${$(summary.kind_label || trendKindLabels[summary.kind] || summary.kind || `未知`)}</strong></div>
+    <div><span>检测目标</span><strong title="${$(summary.target || ``)}">${$(J(summary.target || ``))}</strong></div>
+    <div><span>检测时间</span><strong>${$(Fo(summary.checked_at))}</strong></div>
+    <div><span>生成版本</span><strong>${$(summary.app_version || `未知`)}</strong></div>`;
+  historyImportConclusion.innerHTML = `<span class="history-health health-${health}">${$(Ro(health))}</span><strong>${$(summary.conclusion || `未提供结论`)}</strong>`;
+  historyImportMetrics.innerHTML = metrics.length
+    ? metrics.map(([key, value]) => `<div><span>${$(importedReportMetricLabel(key))}</span><strong>${$(importedReportMetricValue(key, value))}</strong></div>`).join(``)
+    : `<div><span>关键指标</span><strong>${$(Do(importedHistoryRecord))}</strong></div>`;
+  let warnings = Array.isArray(importedReport.warnings) ? importedReport.warnings : [];
+  historyImportWarnings.hidden = warnings.length === 0;
+  historyImportWarnings.innerHTML = warnings.map((warning) => `<p>${$(warning)}</p>`).join(``);
+  historyImportCompareButton.disabled = !comparisonRecord;
+  historyImportCompareButton.title = comparisonRecord ? `将与最近一条同类型记录对比` : `本机暂无同类型记录`;
+  historyImportSaveButton.disabled = importedReportSaved;
+  historyImportSaveButton.textContent = importedReportSaved ? `已保存到本地历史` : `保存到本地历史`;
+  historyImportFileCount.textContent = `${importedReport.files?.length || 0} 个文件 · 格式 V${summary.format_version || 0}`;
+  if (!historyImportDetail.hidden && !historyImportJSON.textContent) {
+    historyImportJSON.textContent = JSON.stringify(importedReport.record, null, 2);
+  }
+}
+async function handleHistoryImport() {
+  if (historyImportButton.disabled) return;
+  let label = historyImportButton.innerHTML;
+  historyImportButton.disabled = !0;
+  historyImportButton.textContent = `正在导入…`;
+  try {
+    let report = await importDiagnosisReport();
+    if (!report?.filename) return;
+    let record = mo(report.record);
+    if (!record) throw new Error(`Imported report has no readable record`);
+    importedReport = report;
+    importedHistoryRecord = record;
+    importedReportSaved = I.some((item) => item.history_id === record.history_id);
+    historyImportDetail.hidden = !0;
+    historyImportJSON.textContent = ``;
+    historyImportComparison.hidden = !0;
+    historyImportDetailButton.textContent = `查看完整结果`;
+    renderImportedReportPreview();
+    requestAnimationFrame(() => historyImportPreview.scrollIntoView({ behavior: `smooth`, block: `nearest` }));
+    Q(`诊断报告已导入，可离线复盘`);
+  } catch (error) {
+    console.error(error);
+    Q(`导入失败：报告包无效或已损坏`);
+  } finally {
+    historyImportButton.disabled = !1;
+    historyImportButton.innerHTML = label;
+  }
+}
+function toggleImportedReportDetail() {
+  let opening = historyImportDetail.hidden;
+  historyImportDetail.hidden = !opening;
+  historyImportDetailButton.textContent = opening ? `收起完整结果` : `查看完整结果`;
+  if (opening) {
+    historyImportJSON.textContent = JSON.stringify(importedReport?.record || {}, null, 2);
+    requestAnimationFrame(() => historyImportDetail.scrollIntoView({ behavior: `smooth`, block: `nearest` }));
+  }
+}
+function compareImportedReport() {
+  let local = findImportedComparisonRecord();
+  if (!local || !importedHistoryRecord) return;
+  let definitions = trendMetricDefinitions[importedHistoryRecord.record_kind] || [],
+    comparable = definitions
+      .map((metric) => ({ metric, local: Number(metric.get(local)), imported: Number(metric.get(importedHistoryRecord)) }))
+      .filter((item) => Number.isFinite(item.local) && Number.isFinite(item.imported) && (item.metric.allowZero ? item.local >= 0 && item.imported >= 0 : item.local > 0 && item.imported > 0))
+      .slice(0, 6);
+  historyImportComparison.innerHTML = `
+    <div class="history-import-comparison-head">
+      <div><span>本机记录</span><strong>${$(Fo(local.checked_at))}</strong></div>
+      <div><span>导入报告</span><strong>${$(Fo(importedHistoryRecord.checked_at))}</strong></div>
+    </div>
+    <div class="history-import-comparison-grid">
+      ${comparable.length ? comparable.map(({ metric, local: localValue, imported }) => {
+        let change = localValue === 0 ? Number.NaN : ((imported - localValue) / localValue) * 100,
+          improvement = metric.higherIsBetter ? change : -change,
+          level = improvement > 5 ? `improved` : improvement < -5 ? `regressed` : `neutral`,
+          delta = Number.isFinite(improvement) ? `${improvement > 0 ? `+` : ``}${improvement.toFixed(1)}%` : `--`;
+        return `<article><span>${$(metric.label)}</span><strong>${$(formatTrendValue(localValue, metric))} → ${$(formatTrendValue(imported, metric))}</strong><em class="delta-${level}">${delta}</em></article>`;
+      }).join(``) : `<article><span>关键指标</span><strong>${$(Do(local))} → ${$(Do(importedHistoryRecord))}</strong><em class="delta-neutral">--</em></article>`}
+    </div>`;
+  historyImportComparison.hidden = !1;
+  requestAnimationFrame(() => historyImportComparison.scrollIntoView({ behavior: `smooth`, block: `nearest` }));
+}
+async function saveImportedReport() {
+  if (!importedReport || !importedHistoryRecord || importedReportSaved) return;
+  historyImportSaveButton.disabled = !0;
+  historyImportSaveButton.textContent = `保存中…`;
+  try {
+    await f(importedReport.record);
+    U(importedHistoryRecord);
+    importedReportSaved = !0;
+    renderImportedReportPreview();
+    Q(`导入报告已保存到本地历史`);
+  } catch (error) {
+    console.error(error);
+    historyImportSaveButton.disabled = !1;
+    historyImportSaveButton.textContent = `保存到本地历史`;
+    Q(`导入报告保存失败`);
+  }
+}
+function closeImportedReport() {
+  importedReport = null;
+  importedHistoryRecord = null;
+  importedReportSaved = !1;
+  historyImportPreview.hidden = !0;
+  historyImportDetail.hidden = !0;
+  historyImportJSON.textContent = ``;
+  historyImportComparison.hidden = !0;
 }
 function vo() {
   let e = new Set(I.map((e) => e.history_id));

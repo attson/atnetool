@@ -2242,6 +2242,83 @@ export namespace main {
 		}
 	}
 
+	export class ImportedReportSummary {
+	    format_version: number;
+	    application: string;
+	    app_version: string;
+	    generated_at: string;
+	    history_id: string;
+	    kind: string;
+	    kind_label: string;
+	    checked_at: string;
+	    target: string;
+	    success: boolean;
+	    conclusion: string;
+	    metrics?: Record<string, any>;
+	    proxy?: Record<string, any>;
+	    traceroute?: Record<string, any>;
+
+	    static createFrom(source: any = {}) {
+	        return new ImportedReportSummary(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.format_version = source["format_version"];
+	        this.application = source["application"];
+	        this.app_version = source["app_version"];
+	        this.generated_at = source["generated_at"];
+	        this.history_id = source["history_id"];
+	        this.kind = source["kind"];
+	        this.kind_label = source["kind_label"];
+	        this.checked_at = source["checked_at"];
+	        this.target = source["target"];
+	        this.success = source["success"];
+	        this.conclusion = source["conclusion"];
+	        this.metrics = source["metrics"];
+	        this.proxy = source["proxy"];
+	        this.traceroute = source["traceroute"];
+	    }
+	}
+	export class ImportedReport {
+	    filename: string;
+	    summary: ImportedReportSummary;
+	    record: HistoryRecord;
+	    files: string[];
+	    warnings?: string[];
+
+	    static createFrom(source: any = {}) {
+	        return new ImportedReport(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.filename = source["filename"];
+	        this.summary = this.convertValues(source["summary"], ImportedReportSummary);
+	        this.record = this.convertValues(source["record"], HistoryRecord);
+	        this.files = source["files"];
+	        this.warnings = source["warnings"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
 	export class IntegratedDiagnosisOptions {
 	    task_id: string;
 	    target_url: string;

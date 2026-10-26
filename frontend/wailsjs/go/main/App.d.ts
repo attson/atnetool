@@ -30,6 +30,8 @@ export function GetHistory():Promise<Array<main.HistoryRecord>>;
 
 export function GetUpdateState():Promise<main.UpdateState>;
 
+export function ImportDiagnosisReport():Promise<main.ImportedReport>;
+
 export function MigrateLegacyHistory(arg1:string):Promise<number>;
 
 export function RunCDNOptimize(arg1:main.CDNOptimizeOptions):Promise<main.CDNOptimizeResult>;
