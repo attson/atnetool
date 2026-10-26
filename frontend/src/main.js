@@ -1,5 +1,10 @@
 import './style.css';
 import { getLocale, startI18n, toggleLocale } from './i18n.js';
+import {
+  buildImportedReportReview,
+  escapeImportedReportHTML,
+  unwrapRouteLongitudes,
+} from './imported-report-review.js';
 
 (function () {
   let e = document.createElement(`link`).relList;
@@ -11001,19 +11006,51 @@ Ce.innerHTML = `
                         <button class="history-import-close" id="history-import-close" type="button" aria-label="关闭导入预览">×</button>
                     </div>
                     <div class="history-import-meta" id="history-import-meta"></div>
-                    <div class="history-import-conclusion" id="history-import-conclusion"></div>
-                    <div class="history-import-metrics" id="history-import-metrics"></div>
-                    <div class="history-import-warnings" id="history-import-warnings" hidden></div>
-                    <div class="history-import-actions">
-                        <button class="history-import-action" id="history-import-detail-button" type="button">查看完整结果</button>
+                    <div class="history-import-toolbar">
+                        <div class="history-import-tabs" id="history-import-tabs" role="tablist" aria-label="离线报告视图">
+                            <button class="active" type="button" role="tab" aria-selected="true" data-import-tab="overview">综合概览</button>
+                            <button type="button" role="tab" aria-selected="false" data-import-tab="evidence">模块证据</button>
+                            <button type="button" role="tab" aria-selected="false" data-import-tab="route">地域链路</button>
+                            <button type="button" role="tab" aria-selected="false" data-import-tab="raw">原始数据</button>
+                        </div>
+                        <div class="history-import-actions">
                         <button class="history-import-action" id="history-import-compare-button" type="button">与本机记录对比</button>
                         <button class="history-import-save" id="history-import-save-button" type="button">保存到本地历史</button>
+                        </div>
+                    </div>
+                    <div class="history-import-workbench">
+                        <section class="history-import-panel" id="history-import-overview" role="tabpanel" data-import-panel="overview">
+                            <div class="history-import-conclusion" id="history-import-conclusion"></div>
+                            <div class="history-import-metrics" id="history-import-metrics"></div>
+                            <div class="history-import-warnings" id="history-import-warnings" hidden></div>
+                            <div class="history-import-overview-grid">
+                                <section>
+                                    <div class="history-import-section-title"><span>LAYER STATUS</span><strong>分层结论</strong></div>
+                                    <div class="history-import-findings" id="history-import-findings"></div>
+                                </section>
+                                <section>
+                                    <div class="history-import-section-title"><span>REMEDIATION</span><strong>治理顺序</strong></div>
+                                    <div class="history-import-remediations" id="history-import-remediations"></div>
+                                </section>
+                            </div>
+                        </section>
+                        <section class="history-import-panel" id="history-import-evidence" role="tabpanel" data-import-panel="evidence" hidden>
+                            <div class="history-import-module-tabs" id="history-import-module-tabs" role="tablist" aria-label="报告模块"></div>
+                            <div class="history-import-module" id="history-import-module"></div>
+                        </section>
+                        <section class="history-import-panel history-import-route" id="history-import-route" role="tabpanel" data-import-panel="route" hidden>
+                            <div class="history-import-route-map-wrap">
+                                <canvas id="history-import-route-map" aria-label="报告内保存的地域链路图"></canvas>
+                                <span class="history-import-route-caption" id="history-import-route-caption"></span>
+                            </div>
+                            <div class="history-import-hops" id="history-import-hops" role="table" aria-label="原始路由跳点"></div>
+                        </section>
+                        <section class="history-import-panel history-import-detail" id="history-import-detail" role="tabpanel" data-import-panel="raw" hidden>
+                            <div><span>VALIDATED EVIDENCE</span><strong id="history-import-file-count"></strong></div>
+                            <pre id="history-import-json" tabindex="0" data-i18n-ignore></pre>
+                        </section>
                     </div>
                     <div class="history-import-comparison" id="history-import-comparison" hidden></div>
-                    <div class="history-import-detail" id="history-import-detail" hidden>
-                        <div><span>VALIDATED EVIDENCE</span><strong id="history-import-file-count"></strong></div>
-                        <pre id="history-import-json"></pre>
-                    </div>
                 </section>
 
                 <div class="history-empty" id="history-empty">
@@ -11181,12 +11218,18 @@ var Pe = document.querySelector(`#trace-list`),
   historyImportConclusion = document.querySelector(`#history-import-conclusion`),
   historyImportMetrics = document.querySelector(`#history-import-metrics`),
   historyImportWarnings = document.querySelector(`#history-import-warnings`),
-  historyImportDetailButton = document.querySelector(`#history-import-detail-button`),
+  historyImportTabs = document.querySelector(`#history-import-tabs`),
+  historyImportFindings = document.querySelector(`#history-import-findings`),
+  historyImportRemediations = document.querySelector(`#history-import-remediations`),
+  historyImportModuleTabs = document.querySelector(`#history-import-module-tabs`),
+  historyImportModule = document.querySelector(`#history-import-module`),
+  historyImportRouteMap = document.querySelector(`#history-import-route-map`),
+  historyImportRouteCaption = document.querySelector(`#history-import-route-caption`),
+  historyImportHops = document.querySelector(`#history-import-hops`),
   historyImportCompareButton = document.querySelector(`#history-import-compare-button`),
   historyImportSaveButton = document.querySelector(`#history-import-save-button`),
   historyImportClose = document.querySelector(`#history-import-close`),
   historyImportComparison = document.querySelector(`#history-import-comparison`),
-  historyImportDetail = document.querySelector(`#history-import-detail`),
   historyImportFileCount = document.querySelector(`#history-import-file-count`),
   historyImportJSON = document.querySelector(`#history-import-json`),
   at = document.querySelector(`#comparison`),
@@ -11564,7 +11607,10 @@ var O = null,
   L = new Set(),
   importedReport = null,
   importedHistoryRecord = null,
-  importedReportSaved = !1;
+  importedReportSaved = !1,
+  importedReviewModel = null,
+  importedReviewTab = `overview`,
+  importedReviewModule = ``;
 ((m.value = as()),
   (dt.value = m.value),
   (Bt.value = os(me)),
@@ -11691,7 +11737,8 @@ var Or = [
   window.addEventListener(`resize`, () => {
     (syncWindowModeToViewport(),
       !_.hidden && N.length && H(),
-      A.length && da(A));
+      A.length && da(A),
+      importedReviewTab === `route` && importedReviewModel?.route && drawImportedReportRouteMap());
   }),
   Ye.addEventListener(`click`, ro),
   nt.addEventListener(`change`, yo),
@@ -11699,7 +11746,10 @@ var Or = [
   rt.addEventListener(`click`, Co),
   it.addEventListener(`click`, wo),
   historyImportButton.addEventListener(`click`, handleHistoryImport),
-  historyImportDetailButton.addEventListener(`click`, toggleImportedReportDetail),
+  historyImportTabs.addEventListener(`click`, handleImportedReviewTab),
+  historyImportTabs.addEventListener(`keydown`, handleImportedReviewTabKeydown),
+  historyImportModuleTabs.addEventListener(`click`, handleImportedReviewModule),
+  historyImportModuleTabs.addEventListener(`keydown`, handleImportedReviewModuleKeydown),
   historyImportCompareButton.addEventListener(`click`, compareImportedReport),
   historyImportSaveButton.addEventListener(`click`, saveImportedReport),
   historyImportClose.addEventListener(`click`, closeImportedReport),
@@ -16341,12 +16391,6 @@ function importedReportMetricLabel(key) {
     open_count: `开放端口`,
   }[key] || key.replaceAll(`_`, ` `).toUpperCase();
 }
-function importedReportMetricValue(key, value) {
-  if (value === null || value === undefined || value === ``) return `--`;
-  if (key.endsWith(`_ms`)) return `${Number(value).toLocaleString(getLocale())} ms`;
-  if (key.endsWith(`_percent`)) return `${Number(value).toFixed(1)}%`;
-  return String(value);
-}
 function findImportedComparisonRecord() {
   if (!importedHistoryRecord) return null;
   let sameKind = I.filter((record) => record.record_kind === importedHistoryRecord.record_kind && record.history_id !== importedHistoryRecord.history_id),
@@ -16361,33 +16405,250 @@ function renderImportedReportPreview() {
     return;
   }
   let summary = importedReport.summary || {},
-    health = Eo(importedHistoryRecord),
-    metrics = Object.entries(summary.metrics || {}).slice(0, 6),
     comparisonRecord = findImportedComparisonRecord();
+  try {
+    importedReviewModel = buildImportedReportReview(importedHistoryRecord, summary);
+  } catch (error) {
+    console.error(error);
+    importedReviewModel = {
+      kind: importedHistoryRecord.record_kind || `unknown`,
+      kindLabel: summary.kind_label || `未知类型`,
+      title: summary.conclusion || `当前报告无法结构化呈现`,
+      health: Eo(importedHistoryRecord),
+      target: summary.target || importedHistoryRecord.target_url || ``,
+      checkedAt: summary.checked_at || importedHistoryRecord.checked_at || ``,
+      metrics: Object.entries(summary.metrics || {}).slice(0, 6).map(([key, value]) => ({ id: key, label: importedReportMetricLabel(key), value, unit: `` })),
+      findings: [], remediations: [], modules: [], route: null,
+      adaptationError: error.message,
+    };
+  }
+  let health = importedReviewModel.health;
   historyImportPreview.dataset.health = health;
   historyImportPreview.hidden = !1;
   historyImportFilename.textContent = importedReport.filename || `ATNetool report.zip`;
   historyImportFilename.title = importedReport.filename || ``;
   historyImportMeta.innerHTML = `
-    <div><span>检测类型</span><strong>${$(summary.kind_label || trendKindLabels[summary.kind] || summary.kind || `未知`)}</strong></div>
-    <div><span>检测目标</span><strong title="${$(summary.target || ``)}">${$(J(summary.target || ``))}</strong></div>
-    <div><span>检测时间</span><strong>${$(Fo(summary.checked_at))}</strong></div>
-    <div><span>生成版本</span><strong>${$(summary.app_version || `未知`)}</strong></div>`;
-  historyImportConclusion.innerHTML = `<span class="history-health health-${health}">${$(Ro(health))}</span><strong>${$(summary.conclusion || `未提供结论`)}</strong>`;
-  historyImportMetrics.innerHTML = metrics.length
-    ? metrics.map(([key, value]) => `<div><span>${$(importedReportMetricLabel(key))}</span><strong>${$(importedReportMetricValue(key, value))}</strong></div>`).join(``)
-    : `<div><span>关键指标</span><strong>${$(Do(importedHistoryRecord))}</strong></div>`;
+    <div><span>检测类型</span><strong>${escapeImportedReportHTML(importedReviewModel.kindLabel || trendKindLabels[summary.kind] || summary.kind || `未知`)}</strong></div>
+    <div><span>检测目标</span><strong title="${escapeImportedReportHTML(importedReviewModel.target)}">${escapeImportedReportHTML(J(importedReviewModel.target || ``))}</strong></div>
+    <div><span>检测时间</span><strong>${escapeImportedReportHTML(Fo(importedReviewModel.checkedAt))}</strong></div>
+    <div><span>生成版本</span><strong>${escapeImportedReportHTML(summary.app_version || `未知`)}</strong></div>`;
+  renderImportedReviewOverview();
+  renderImportedReviewEvidence();
+  renderImportedReviewRoute();
   let warnings = Array.isArray(importedReport.warnings) ? importedReport.warnings : [];
+  if (importedReviewModel.adaptationError) warnings = [...warnings, `结构化呈现失败：${importedReviewModel.adaptationError}`];
   historyImportWarnings.hidden = warnings.length === 0;
-  historyImportWarnings.innerHTML = warnings.map((warning) => `<p>${$(warning)}</p>`).join(``);
+  historyImportWarnings.innerHTML = warnings.map((warning) => `<p>${escapeImportedReportHTML(warning)}</p>`).join(``);
   historyImportCompareButton.disabled = !comparisonRecord;
   historyImportCompareButton.title = comparisonRecord ? `将与最近一条同类型记录对比` : `本机暂无同类型记录`;
   historyImportSaveButton.disabled = importedReportSaved;
   historyImportSaveButton.textContent = importedReportSaved ? `已保存到本地历史` : `保存到本地历史`;
   historyImportFileCount.textContent = `${importedReport.files?.length || 0} 个文件 · 格式 V${summary.format_version || 0}`;
-  if (!historyImportDetail.hidden && !historyImportJSON.textContent) {
+  if (importedReviewTab === `raw` && !historyImportJSON.textContent) {
     historyImportJSON.textContent = JSON.stringify(importedReport.record, null, 2);
   }
+  syncImportedReviewTabs();
+}
+function formatImportedReviewValue(value, unit = ``) {
+  if (value === null || value === undefined || value === ``) return `未采集`;
+  if (typeof value === `boolean`) return value ? `是` : `否`;
+  if (typeof value === `number`) {
+    let formatted = value.toLocaleString(getLocale(), { maximumFractionDigits: Number.isInteger(value) ? 0 : 1 });
+    return `${formatted}${unit ? ` ${unit}` : ``}`;
+  }
+  return `${value}${unit ? ` ${unit}` : ``}`;
+}
+function renderImportedReviewOverview() {
+  let model = importedReviewModel;
+  if (!model) return;
+  historyImportConclusion.innerHTML = `<span class="history-health health-${escapeImportedReportHTML(model.health)}">${escapeImportedReportHTML(Ro(model.health))}</span><strong>${escapeImportedReportHTML(model.title || `未提供结论`)}</strong>`;
+  historyImportMetrics.innerHTML = model.metrics.length
+    ? model.metrics.map((item) => `<div><span>${escapeImportedReportHTML(item.label)}</span><strong title="${escapeImportedReportHTML(formatImportedReviewValue(item.value, item.unit))}">${escapeImportedReportHTML(formatImportedReviewValue(item.value, item.unit))}</strong></div>`).join(``)
+    : `<div><span>关键指标</span><strong>${escapeImportedReportHTML(Do(importedHistoryRecord))}</strong></div>`;
+  historyImportFindings.innerHTML = model.findings.length
+    ? model.findings.map((item) => `<article data-health="${escapeImportedReportHTML(item.status)}"><i></i><div><strong>${escapeImportedReportHTML(item.title)}</strong>${item.detail ? `<p>${escapeImportedReportHTML(item.detail)}</p>` : ``}</div>${item.layer ? `<span>${escapeImportedReportHTML(item.layer)}</span>` : ``}</article>`).join(``)
+    : `<div class="history-import-empty-evidence">报告未包含分层结论</div>`;
+  historyImportRemediations.innerHTML = model.remediations.length
+    ? model.remediations.map((item, index) => `<article><span>${String(item.priority || index + 1).padStart(2, `0`)}</span><div><strong>${escapeImportedReportHTML(item.title)}</strong>${item.detail ? `<p>${escapeImportedReportHTML(item.detail)}</p>` : ``}</div></article>`).join(``)
+    : `<div class="history-import-empty-evidence">报告未包含治理建议</div>`;
+}
+function renderImportedReviewEvidence() {
+  let modules = importedReviewModel?.modules || [];
+  if (!modules.some((item) => item.id === importedReviewModule)) importedReviewModule = modules[0]?.id || ``;
+  historyImportModuleTabs.innerHTML = modules.map((item, index) => `<button type="button" role="tab" data-import-module="${escapeImportedReportHTML(item.id)}" aria-selected="${item.id === importedReviewModule}" tabindex="${item.id === importedReviewModule ? 0 : -1}" class="${item.id === importedReviewModule ? `active` : ``}">${String(index + 1).padStart(2, `0`)} · ${escapeImportedReportHTML(item.title)}</button>`).join(``);
+  let active = modules.find((item) => item.id === importedReviewModule);
+  if (!active) {
+    historyImportModule.innerHTML = `<div class="history-import-empty-evidence">当前报告没有可用的模块证据，可在原始数据中核对。</div>`;
+    return;
+  }
+  let rows = active.rows.map((item) => `<div><dt>${escapeImportedReportHTML(item.label)}</dt><dd title="${escapeImportedReportHTML(formatImportedReviewValue(item.value, item.unit))}">${escapeImportedReportHTML(formatImportedReviewValue(item.value, item.unit))}</dd></div>`).join(``);
+  let details = active.details.length
+    ? `<div class="history-import-detail-grid">${active.details.map((item, index) => renderImportedEvidenceDetail(item, index)).join(``)}</div>`
+    : ``;
+  historyImportModule.innerHTML = `<div class="history-import-module-heading"><div><span>${escapeImportedReportHTML(Ro(active.status))}</span><h4>${escapeImportedReportHTML(active.title)}</h4></div>${active.message ? `<p>${escapeImportedReportHTML(active.message)}</p>` : ``}</div><dl class="history-import-evidence-rows">${rows}</dl>${details}`;
+}
+function renderImportedEvidenceDetail(item, index) {
+  if (!item || typeof item !== `object`) return `<article><strong>#${index + 1}</strong><p>${escapeImportedReportHTML(formatImportedReviewValue(item))}</p></article>`;
+  let title = item.label || item.name || item.title || item.ip || item.target_url || item.target || (item.port ? `${item.service || `PORT`} ${item.port}` : `#${index + 1}`),
+    values = Object.entries(item)
+      .filter(([, value]) => value !== null && value !== undefined && value !== `` && (typeof value !== `object` || Array.isArray(value)))
+      .slice(0, 6)
+      .map(([key, value]) => `<div><span>${escapeImportedReportHTML(importedReportMetricLabel(key))}</span><strong title="${escapeImportedReportHTML(Array.isArray(value) ? value.join(`, `) : value)}">${escapeImportedReportHTML(Array.isArray(value) ? value.join(`, `) : formatImportedReviewValue(value))}</strong></div>`)
+      .join(``);
+  return `<article><h5>${escapeImportedReportHTML(title)}</h5>${values || `<p>未采集明细字段</p>`}</article>`;
+}
+function renderImportedReviewRoute() {
+  let route = importedReviewModel?.route,
+    routeTab = historyImportTabs.querySelector(`[data-import-tab="route"]`);
+  routeTab.hidden = !route;
+  routeTab.disabled = !route;
+  if (!route) {
+    historyImportHops.innerHTML = ``;
+    return;
+  }
+  historyImportRouteCaption.textContent = `${route.points.length} 个已定位节点 · ${route.hops.length} 个原始跳点 · ${route.reached ? `已到达目标` : `部分链路`}`;
+  historyImportHops.innerHTML = `<div class="history-import-hop history-import-hop-head" role="row"><span>HOP</span><span>地址</span><span>RTT</span><span>位置证据</span><span>状态</span></div>${route.hops.map((hop) => {
+    let location = hop.geo ? [hop.geo.city, hop.geo.region, hop.geo.country].filter(Boolean).join(`, `) : `未定位`,
+      latency = hop.rttMS.length ? hop.rttMS.map((value) => `${value.toFixed(value < 10 ? 2 : 1)} ms`).join(` / `) : `--`;
+    return `<div class="history-import-hop" role="row"><strong>${String(hop.hop).padStart(2, `0`)}</strong><span title="${escapeImportedReportHTML(hop.addresses.join(`, `))}">${escapeImportedReportHTML(hop.addresses.join(`, `) || `*`)}</span><span>${escapeImportedReportHTML(latency)}</span><span title="${escapeImportedReportHTML(location)}">${escapeImportedReportHTML(location)}</span><em>${hop.reached ? `TARGET` : hop.timedOut ? `NO REPLY` : `TRANSIT`}</em></div>`;
+  }).join(``)}`;
+}
+function syncImportedReviewTabs(focus = !1) {
+  if (!importedReviewModel?.route && importedReviewTab === `route`) importedReviewTab = `overview`;
+  historyImportTabs.querySelectorAll(`[data-import-tab]`).forEach((button) => {
+    let active = button.dataset.importTab === importedReviewTab;
+    button.classList.toggle(`active`, active);
+    button.setAttribute(`aria-selected`, String(active));
+    button.tabIndex = active ? 0 : -1;
+    if (active && focus) button.focus();
+  });
+  historyImportPreview.querySelectorAll(`[data-import-panel]`).forEach((panel) => {
+    panel.hidden = panel.dataset.importPanel !== importedReviewTab;
+  });
+  if (importedReviewTab === `raw` && !historyImportJSON.textContent) historyImportJSON.textContent = JSON.stringify(importedReport?.record || {}, null, 2);
+  if (importedReviewTab === `route`) requestAnimationFrame(drawImportedReportRouteMap);
+}
+function switchImportedReviewTab(tab, focus = !1) {
+  if (!historyImportTabs.querySelector(`[data-import-tab="${tab}"]:not([hidden]):not(:disabled)`)) return;
+  importedReviewTab = tab;
+  syncImportedReviewTabs(focus);
+}
+function handleImportedReviewTab(event) {
+  let button = event.target.closest(`[data-import-tab]`);
+  if (button) switchImportedReviewTab(button.dataset.importTab);
+}
+function handleImportedReviewTabKeydown(event) {
+  if (![`ArrowLeft`, `ArrowRight`, `Home`, `End`].includes(event.key)) return;
+  let buttons = [...historyImportTabs.querySelectorAll(`[data-import-tab]:not([hidden]):not(:disabled)`)],
+    index = buttons.indexOf(event.target);
+  if (index < 0) return;
+  event.preventDefault();
+  index = event.key === `Home` ? 0 : event.key === `End` ? buttons.length - 1 : (index + (event.key === `ArrowRight` ? 1 : -1) + buttons.length) % buttons.length;
+  switchImportedReviewTab(buttons[index].dataset.importTab, !0);
+}
+function handleImportedReviewModule(event) {
+  let button = event.target.closest(`[data-import-module]`);
+  if (!button) return;
+  importedReviewModule = button.dataset.importModule;
+  renderImportedReviewEvidence();
+}
+function handleImportedReviewModuleKeydown(event) {
+  if (![`ArrowLeft`, `ArrowRight`, `Home`, `End`].includes(event.key)) return;
+  let buttons = [...historyImportModuleTabs.querySelectorAll(`[data-import-module]`)], index = buttons.indexOf(event.target);
+  if (index < 0) return;
+  event.preventDefault();
+  index = event.key === `Home` ? 0 : event.key === `End` ? buttons.length - 1 : (index + (event.key === `ArrowRight` ? 1 : -1) + buttons.length) % buttons.length;
+  importedReviewModule = buttons[index].dataset.importModule;
+  renderImportedReviewEvidence();
+  historyImportModuleTabs.querySelector(`[data-import-module="${importedReviewModule}"]`)?.focus();
+}
+function drawImportedReportRouteMap() {
+  let route = importedReviewModel?.route, canvas = historyImportRouteMap;
+  if (!route || !canvas || canvas.closest(`[hidden]`)) return;
+  let box = canvas.getBoundingClientRect();
+  if (!box.width || !box.height) return;
+  let ratio = Math.min(window.devicePixelRatio || 1, 2), width = box.width, height = box.height;
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  let context = canvas.getContext(`2d`), styles = getComputedStyle(document.documentElement), color = (name) => styles.getPropertyValue(name).trim();
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  let gradient = context.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, color(`--map-bg-start`));
+  gradient.addColorStop(1, color(`--map-bg-end`));
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+  let points = route.points, longitudes = unwrapRouteLongitudes(points), latitudes = points.map((point) => point.coordinates[1]),
+    minLongitude = points.length > 1 ? Math.min(...longitudes) : points.length ? longitudes[0] - 40 : -180,
+    maxLongitude = points.length > 1 ? Math.max(...longitudes) : points.length ? longitudes[0] + 40 : 180,
+    minLatitude = points.length > 1 ? Math.min(...latitudes) : points.length ? latitudes[0] - 25 : -70,
+    maxLatitude = points.length > 1 ? Math.max(...latitudes) : points.length ? latitudes[0] + 25 : 85;
+  let longitudePadding = points.length ? Math.max(12, (maxLongitude - minLongitude) * .35) : 0,
+    latitudePadding = points.length ? Math.max(8, (maxLatitude - minLatitude) * .45) : 0;
+  minLongitude -= longitudePadding;
+  maxLongitude += longitudePadding;
+  minLatitude = Math.max(-85, minLatitude - latitudePadding);
+  maxLatitude = Math.min(85, maxLatitude + latitudePadding);
+  if (points.length && maxLongitude - minLongitude < 40) { minLongitude -= 20; maxLongitude += 20; }
+  if (points.length && maxLatitude - minLatitude < 28) { minLatitude -= 14; maxLatitude += 14; }
+  let longitudeCenter = (minLongitude + maxLongitude) / 2,
+    alignLongitude = (longitude) => {
+      let aligned = Number(longitude);
+      while (aligned - longitudeCenter > 180) aligned -= 360;
+      while (aligned - longitudeCenter < -180) aligned += 360;
+      return aligned;
+    },
+    project = (longitude, latitude) => ({
+    x: 16 + ((alignLongitude(longitude) - minLongitude) / Math.max(1, maxLongitude - minLongitude)) * (width - 32),
+    y: 14 + ((maxLatitude - Number(latitude)) / Math.max(1, maxLatitude - minLatitude)) * (height - 28),
+  });
+  context.strokeStyle = color(`--map-grid`);
+  context.lineWidth = 1;
+  for (let index = 1; index < 8; index += 1) {
+    context.beginPath(); context.moveTo((width / 8) * index, 0); context.lineTo((width / 8) * index, height); context.stroke();
+  }
+  for (let index = 1; index < 5; index += 1) {
+    context.beginPath(); context.moveTo(0, (height / 5) * index); context.lineTo(width, (height / 5) * index); context.stroke();
+  }
+  context.save();
+  context.beginPath(); context.rect(0, 0, width, height); context.clip();
+  context.fillStyle = color(`--map-land`);
+  context.strokeStyle = color(`--map-border`);
+  context.lineWidth = .65;
+  xe.forEach((feature) => {
+    let polygons = feature.geometry.type === `Polygon` ? [feature.geometry.coordinates] : feature.geometry.coordinates;
+    polygons.forEach((polygon) => polygon.forEach((ring) => {
+      context.beginPath();
+      let previous = null, started = !1;
+      ring.forEach(([longitude, latitude]) => {
+        let point = project(longitude, latitude);
+        if (previous && Math.abs(point.x - previous.x) > width * .6) { started = !1; previous = point; return; }
+        started ? context.lineTo(point.x, point.y) : (context.moveTo(point.x, point.y), started = !0);
+        previous = point;
+      });
+      context.closePath(); context.fill(); context.stroke();
+    }));
+  });
+  let plotted = points.map((point, index) => project(longitudes[index], point.coordinates[1]));
+  if (plotted.length > 1) {
+    context.beginPath(); context.moveTo(plotted[0].x, plotted[0].y);
+    plotted.slice(1).forEach((point, index) => {
+      let previous = plotted[index], controlX = (previous.x + point.x) / 2, controlY = (previous.y + point.y) / 2 - Math.min(28, Math.abs(point.x - previous.x) * .12);
+      context.quadraticCurveTo(controlX, controlY, point.x, point.y);
+    });
+    context.strokeStyle = color(`--map-route-glow`); context.lineWidth = 7; context.stroke();
+    context.beginPath(); context.moveTo(plotted[0].x, plotted[0].y);
+    plotted.slice(1).forEach((point, index) => {
+      let previous = plotted[index], controlX = (previous.x + point.x) / 2, controlY = (previous.y + point.y) / 2 - Math.min(28, Math.abs(point.x - previous.x) * .12);
+      context.quadraticCurveTo(controlX, controlY, point.x, point.y);
+    });
+    context.strokeStyle = color(`--cyan`); context.lineWidth = 1.8; context.stroke();
+  }
+  plotted.forEach((point, index) => {
+    context.beginPath(); context.arc(point.x, point.y, index === plotted.length - 1 ? 6 : 5, 0, Math.PI * 2);
+    context.fillStyle = color(`--map-marker-bg`); context.fill();
+    context.strokeStyle = index === plotted.length - 1 ? color(`--green`) : color(`--cyan`); context.lineWidth = 2; context.stroke();
+  });
+  context.restore();
 }
 async function handleHistoryImport() {
   if (historyImportButton.disabled) return;
@@ -16402,10 +16663,10 @@ async function handleHistoryImport() {
     importedReport = report;
     importedHistoryRecord = record;
     importedReportSaved = I.some((item) => item.history_id === record.history_id);
-    historyImportDetail.hidden = !0;
+    importedReviewTab = `overview`;
+    importedReviewModule = ``;
     historyImportJSON.textContent = ``;
     historyImportComparison.hidden = !0;
-    historyImportDetailButton.textContent = `查看完整结果`;
     renderImportedReportPreview();
     requestAnimationFrame(() => historyImportPreview.scrollIntoView({ behavior: `smooth`, block: `nearest` }));
     Q(`诊断报告已导入，可离线复盘`);
@@ -16415,15 +16676,6 @@ async function handleHistoryImport() {
   } finally {
     historyImportButton.disabled = !1;
     historyImportButton.innerHTML = label;
-  }
-}
-function toggleImportedReportDetail() {
-  let opening = historyImportDetail.hidden;
-  historyImportDetail.hidden = !opening;
-  historyImportDetailButton.textContent = opening ? `收起完整结果` : `查看完整结果`;
-  if (opening) {
-    historyImportJSON.textContent = JSON.stringify(importedReport?.record || {}, null, 2);
-    requestAnimationFrame(() => historyImportDetail.scrollIntoView({ behavior: `smooth`, block: `nearest` }));
   }
 }
 function compareImportedReport() {
@@ -16436,8 +16688,8 @@ function compareImportedReport() {
       .slice(0, 6);
   historyImportComparison.innerHTML = `
     <div class="history-import-comparison-head">
-      <div><span>本机记录</span><strong>${$(Fo(local.checked_at))}</strong></div>
-      <div><span>导入报告</span><strong>${$(Fo(importedHistoryRecord.checked_at))}</strong></div>
+      <div><span>本机记录</span><strong>${$(Fo(local.checked_at))}</strong><small title="${$(getTrendTargetIdentity(local))}">${$(getTrendTargetIdentity(local) || `未知目标`)}</small></div>
+      <div><span>导入报告</span><strong>${$(Fo(importedHistoryRecord.checked_at))}</strong><small title="${$(getTrendTargetIdentity(importedHistoryRecord))}">${$(getTrendTargetIdentity(importedHistoryRecord) || `未知目标`)}</small></div>
     </div>
     <div class="history-import-comparison-grid">
       ${comparable.length ? comparable.map(({ metric, local: localValue, imported }) => {
@@ -16472,8 +16724,10 @@ function closeImportedReport() {
   importedReport = null;
   importedHistoryRecord = null;
   importedReportSaved = !1;
+  importedReviewModel = null;
+  importedReviewTab = `overview`;
+  importedReviewModule = ``;
   historyImportPreview.hidden = !0;
-  historyImportDetail.hidden = !0;
   historyImportJSON.textContent = ``;
   historyImportComparison.hidden = !0;
 }
@@ -17879,7 +18133,9 @@ function rs() {
   try {
     window.localStorage.setItem(fe, e);
   } catch {}
-  (is(), !_.hidden && N.length && requestAnimationFrame(H));
+  (is(),
+    !_.hidden && N.length && requestAnimationFrame(H),
+    importedReviewTab === `route` && importedReviewModel?.route && requestAnimationFrame(drawImportedReportRouteMap));
 }
 function is() {
   let e = document.documentElement.dataset.theme === `light`;
