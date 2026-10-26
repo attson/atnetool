@@ -58,6 +58,10 @@ export function GetUpdateState() {
   return window['go']['main']['App']['GetUpdateState']();
 }
 
+export function ImportDiagnosisReport() {
+  return window['go']['main']['App']['ImportDiagnosisReport']();
+}
+
 export function MigrateLegacyHistory(arg1) {
   return window['go']['main']['App']['MigrateLegacyHistory'](arg1);
 }
