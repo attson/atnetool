@@ -22,6 +22,8 @@ export function ExportCDNResultsCSV(arg1:main.CDNOptimizeResult):Promise<string>
 
 export function ExportCFGovernanceBundle(arg1:main.CDNOptimizeResult):Promise<string>;
 
+export function ExportHistoryReport(arg1:main.HistoryRecord):Promise<string>;
+
 export function GetCFAccelerationStatus():Promise<main.CFAccelerationStatus>;
 
 export function GetHistory():Promise<Array<main.HistoryRecord>>;

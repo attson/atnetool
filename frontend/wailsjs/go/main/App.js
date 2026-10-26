@@ -42,6 +42,10 @@ export function ExportCFGovernanceBundle(arg1) {
   return window['go']['main']['App']['ExportCFGovernanceBundle'](arg1);
 }
 
+export function ExportHistoryReport(arg1) {
+  return window['go']['main']['App']['ExportHistoryReport'](arg1);
+}
+
 export function GetCFAccelerationStatus() {
   return window['go']['main']['App']['GetCFAccelerationStatus']();
 }

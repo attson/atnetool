@@ -5317,6 +5317,7 @@ p {
 
 .quiet-button,
 .compare-button,
+.history-export,
 .history-retest,
 .comparison-close {
     border-radius: 3px;
@@ -5417,7 +5418,7 @@ p {
 .history-row {
     display: grid;
     min-width: 880px;
-    grid-template-columns: 30px 130px minmax(190px, 1fr) 90px 74px 66px 48px;
+    grid-template-columns: 30px 130px minmax(190px, 1fr) 90px 74px 66px 104px;
     align-items: center;
     gap: 12px;
     min-height: 56px;
@@ -5516,6 +5517,14 @@ p {
     color: var(--red);
 }
 
+.history-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+.history-export,
 .history-retest {
     min-height: 27px;
     padding: 4px 7px;
@@ -5525,10 +5534,16 @@ p {
     font-size: 10px;
 }
 
-.history-retest:hover {
+.history-export:hover:not(:disabled),
+.history-retest:hover:not(:disabled) {
     border-color: #47777d;
     color: var(--cyan);
     background: #112125;
+}
+
+.history-export:disabled {
+    cursor: wait;
+    opacity: .58;
 }
 
 .comparison {
@@ -6212,6 +6227,7 @@ html[data-theme="light"] .info-tip {
 }
 
 html[data-theme="light"] .secondary-button,
+html[data-theme="light"] .history-export,
 html[data-theme="light"] .history-retest,
 html[data-theme="light"] .comparison-close,
 html[data-theme="light"] .quiet-button {
@@ -6220,6 +6236,7 @@ html[data-theme="light"] .quiet-button {
 }
 
 html[data-theme="light"] .secondary-button:hover,
+html[data-theme="light"] .history-export:hover:not(:disabled),
 html[data-theme="light"] .history-retest:hover,
 html[data-theme="light"] .recommendation-item button:hover {
     color: #076f78;
@@ -6876,6 +6893,7 @@ summary:focus-visible,
 .secondary-button,
 .recommendation-item button,
 .quiet-button,
+.history-export,
 .history-retest,
 .comparison-close {
     min-height: 34px;
@@ -7578,7 +7596,7 @@ html[data-theme="light"] select {
 
     .history-row {
         min-width: 760px;
-        grid-template-columns: 30px 118px minmax(160px, 1fr) 82px 68px 62px 44px;
+        grid-template-columns: 30px 118px minmax(160px, 1fr) 82px 68px 62px 100px;
     }
 
     .stability-form {
@@ -7943,7 +7961,7 @@ html[data-theme="light"] select {
         grid-row: 2;
     }
 
-    .history-row > span:not(.history-target):not(.history-health) {
+    .history-row > span:not(.history-target):not(.history-health):not(.history-actions) {
         grid-column: 2;
     }
 
@@ -7957,7 +7975,7 @@ html[data-theme="light"] select {
         grid-row: 3;
     }
 
-    .history-retest {
+    .history-actions {
         grid-column: 3;
         grid-row: 4;
     }
