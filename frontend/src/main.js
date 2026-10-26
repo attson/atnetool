@@ -41,6 +41,9 @@ function t() {
 function n() {
   return window.go.main.App.GetHistory();
 }
+function exportHistoryReport(e) {
+  return window.go.main.App.ExportHistoryReport(e);
+}
 function r(e) {
   return window.go.main.App.MigrateLegacyHistory(e);
 }
@@ -10994,7 +10997,7 @@ Ce.innerHTML = `
                     </div>
                     <div class="history-table" role="table" aria-label="本地检测历史">
                         <div class="history-row history-head" role="row">
-                            <span></span><span>检测时间</span><span>目标</span><span>连接策略</span><span>关键指标</span><span>结论</span><span></span>
+                            <span></span><span>检测时间</span><span>目标</span><span>连接策略</span><span>关键指标</span><span>结论</span><span>操作</span>
                         </div>
                         <div id="history-list"></div>
                     </div>
@@ -16288,7 +16291,10 @@ function vo() {
                 <span data-label="策略">${$(Ko(e.proxy_mode))}</span>
                 <strong data-label="关键指标">${$(Do(e))}</strong>
                 <span class="history-health health-${t}" data-label="结论">${$(Ro(t))}</span>
-                <button class="history-retest" type="button" data-action="retest-history" aria-label="使用该配置复测">复测</button>
+                <span class="history-actions" data-label="操作">
+                    <button class="history-export" type="button" data-action="export-history" aria-label="导出诊断报告包">导出</button>
+                    <button class="history-retest" type="button" data-action="retest-history" aria-label="使用该配置复测">复测</button>
+                </span>
             </div>
         `;
     }).join(``)));
@@ -16502,7 +16508,27 @@ function xo(e, t) {
   let n = [...e.options].find((e) => Number(e.value) === Number(t));
   n && ((e.value = n.value), syncStyledSelect(e));
 }
-function So(e) {
+async function So(e) {
+  let exportButton = e.target.closest(`[data-action="export-history"]`);
+  if (exportButton) {
+    let row = exportButton.closest(`[data-history-id]`),
+      record = I.find((item) => item.history_id === row?.dataset.historyId);
+    if (!record || exportButton.disabled) return;
+    let originalText = exportButton.textContent;
+    exportButton.disabled = !0;
+    exportButton.textContent = `导出中…`;
+    try {
+      let path = await exportHistoryReport(G(record));
+      path && Q(`诊断报告已导出`);
+    } catch (error) {
+      console.error(error);
+      Q(`导出诊断报告失败`);
+    } finally {
+      exportButton.disabled = !1;
+      exportButton.textContent = originalText;
+    }
+    return;
+  }
   let t = e.target.closest(`[data-action="retest-history"]`);
   if (!t) return;
   let n = t.closest(`[data-history-id]`),
