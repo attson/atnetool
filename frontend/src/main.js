@@ -5,6 +5,7 @@ import {
   escapeImportedReportHTML,
   unwrapRouteLongitudes,
 } from './imported-report-review.js';
+import { buildGovernanceCenterModel } from './governance-center.js';
 
 (function () {
   let e = document.createElement(`link`).relList;
@@ -10904,6 +10905,73 @@ Ce.innerHTML = `
                 </div>
             </section>
 
+            <section class="governance-center module-view" id="governance-center" data-module-view="governance-center" role="tabpanel" aria-labelledby="governance-center-title">
+                <div class="governance-header">
+                    <div class="panel-heading">
+                        <span class="panel-index">03</span>
+                        <div>
+                            <span class="eyebrow">GOVERNANCE WORKFLOW</span>
+                            <h2 id="governance-center-title">治理任务中心</h2>
+                        </div>
+                    </div>
+                    <span class="info-tip" tabindex="0" role="note" aria-label="治理中心说明"
+                          data-tooltip="根据最近一次综合诊断生成治理顺序；先验证再应用，并保留复测与回滚入口。">i</span>
+                </div>
+
+                <div class="governance-hero" id="governance-hero" data-state="idle">
+                    <div class="governance-hero-status"><i aria-hidden="true"></i><span id="governance-state-label">WAITING FOR BASELINE</span></div>
+                    <div class="governance-hero-copy">
+                        <strong id="governance-title">等待诊断基线</strong>
+                        <p id="governance-target">运行一次综合诊断后自动生成治理任务</p>
+                    </div>
+                    <div class="governance-hero-actions">
+                        <button class="quiet-button" type="button" data-governance-action="open-diagnosis">查看诊断</button>
+                        <button class="primary-button" type="button" data-governance-action="diagnose">运行综合诊断</button>
+                    </div>
+                </div>
+
+                <div class="governance-flow" id="governance-flow" aria-label="治理进度">
+                    <article data-stage="pending"><span>01</span><i></i><div><strong>采集证据</strong><p>综合诊断</p></div></article>
+                    <article data-stage="pending"><span>02</span><i></i><div><strong>选择方案</strong><p>路径与优先级</p></div></article>
+                    <article data-stage="pending"><span>03</span><i></i><div><strong>执行治理</strong><p>显式应用</p></div></article>
+                    <article data-stage="pending"><span>04</span><i></i><div><strong>复测验证</strong><p>前后对比</p></div></article>
+                </div>
+
+                <div class="governance-overview-grid">
+                    <section class="governance-decision-card">
+                        <div class="governance-section-title"><span>ROUTE DECISION</span><strong>连接策略</strong></div>
+                        <div class="governance-route" id="governance-route">
+                            <div><span>当前路径</span><strong>--</strong><small>等待路径证据</small></div>
+                            <i aria-hidden="true">→</i>
+                            <div><span>推荐路径</span><strong>--</strong><small>等待路径证据</small></div>
+                        </div>
+                        <button class="secondary-button governance-retest" id="governance-retest" type="button" data-governance-action="retest" disabled>使用推荐路径复测</button>
+                    </section>
+                    <section class="governance-verification-card">
+                        <div class="governance-section-title"><span>BEFORE / AFTER</span><strong>治理效果</strong></div>
+                        <div class="governance-comparison" id="governance-comparison">
+                            <div><span>端到端耗时</span><strong>--</strong><small>暂无复测记录</small></div>
+                            <div><span>TTFB</span><strong>--</strong><small>暂无复测记录</small></div>
+                        </div>
+                    </section>
+                </div>
+
+                <section class="governance-recovery" id="governance-recovery" hidden>
+                    <div><i aria-hidden="true"></i><span><strong id="governance-recovery-title">CF IP 优选正在生效</strong><small id="governance-recovery-detail">已保存原系统代理恢复点</small></span></div>
+                    <button class="secondary-button" type="button" data-governance-action="rollback">停止并恢复</button>
+                </section>
+
+                <section class="governance-tasks">
+                    <div class="governance-section-title governance-task-heading">
+                        <div><span>ACTION QUEUE</span><strong>治理任务</strong></div>
+                        <em id="governance-task-count">0 TASKS</em>
+                    </div>
+                    <div class="governance-task-list" id="governance-task-list">
+                        <div class="governance-empty"><i></i><strong>尚未生成治理任务</strong><span>先运行综合诊断建立网络基线</span></div>
+                    </div>
+                </section>
+            </section>
+
             <section class="path-compare" id="path-compare" aria-labelledby="path-compare-title">
                 <div class="path-compare-header">
                     <div class="panel-heading">
@@ -11488,6 +11556,21 @@ const integratedForm = document.querySelector(`#integrated-form`),
   integratedCopyButton = document.querySelector(`#integrated-copy-button`);
 let integratedTaskID = null,
   integratedResult = null;
+const governanceCenter = document.querySelector(`#governance-center`),
+  governanceHero = document.querySelector(`#governance-hero`),
+  governanceStateLabel = document.querySelector(`#governance-state-label`),
+  governanceTitle = document.querySelector(`#governance-title`),
+  governanceTarget = document.querySelector(`#governance-target`),
+  governanceFlow = document.querySelector(`#governance-flow`),
+  governanceRoute = document.querySelector(`#governance-route`),
+  governanceRetest = document.querySelector(`#governance-retest`),
+  governanceComparison = document.querySelector(`#governance-comparison`),
+  governanceRecovery = document.querySelector(`#governance-recovery`),
+  governanceRecoveryTitle = document.querySelector(`#governance-recovery-title`),
+  governanceRecoveryDetail = document.querySelector(`#governance-recovery-detail`),
+  governanceTaskCount = document.querySelector(`#governance-task-count`),
+  governanceTaskList = document.querySelector(`#governance-task-list`);
+let governanceModel = null;
 const moduleGroups = {
     diagnosis: [
       `integrated`,
@@ -11497,7 +11580,7 @@ const moduleGroups = {
       `network-baseline`,
     ],
     monitoring: [`stability`, `site-patrol`],
-    governance: [`path-compare`, `cdn-optimize`],
+    governance: [`governance-center`, `path-compare`, `cdn-optimize`],
     records: [`history`, `history-trends`],
   },
   moduleMeta = {
@@ -11525,6 +11608,11 @@ const moduleGroups = {
       label: `本地环境`,
       title: `诊断中心 · 本地环境`,
       subtitle: `接口、默认路由、DNS、出口与代理环境`,
+    },
+    "governance-center": {
+      label: `治理中心`,
+      title: `优化治理 · 任务中心`,
+      subtitle: `从诊断结论到治理、复测与回滚的统一工作流`,
     },
     stability: {
       label: `单目标监测`,
@@ -11655,6 +11743,7 @@ var Or = [
 ];
 (integratedForm.addEventListener(`submit`, handleIntegratedSubmit),
   integratedCopyButton.addEventListener(`click`, copyIntegratedReport),
+  governanceCenter.addEventListener(`click`, handleGovernanceAction),
   integratedTarget.addEventListener(`input`, clearIntegratedTargetError),
   integratedTarget.addEventListener(`blur`, () => normaliseTargetField(integratedTarget, integratedScheme)),
   integratedScheme.addEventListener(`change`, clearIntegratedTargetError),
@@ -11769,6 +11858,7 @@ window.addEventListener(`atnetool:localechange`, () => {
   if (!_.hidden && N.length) requestAnimationFrame(H);
   if (A.length) requestAnimationFrame(() => da(A));
   if (importedReport) renderImportedReportPreview();
+  renderGovernanceCenter();
   if (!document.querySelector(`#history-trends`)?.hidden) renderHistoryTrends();
 });
 
@@ -11996,7 +12086,165 @@ function R(e) {
     (modulePageSubtitle.textContent = meta.subtitle),
     (t === `integrated` || t === `diagnosis`) && syncRoutePanel(t),
     t === `stability` && A.length && requestAnimationFrame(() => da(A)),
+    t === `governance-center` && renderGovernanceCenter(),
     t === `history-trends` && renderHistoryTrends());
+}
+
+function governanceRouteSummary(route) {
+  if (!route) return { label: `未识别`, detail: `等待路径证据` };
+  const success = Number(route.success_rate);
+  const successLabel = Number.isFinite(success) && success > 0
+    ? `${Math.round(success * 100)}% 成功`
+    : `无可用样本`;
+  return {
+    label: route.label || route.id || `未识别`,
+    detail: `${successLabel} · P50 ${Y(route.p50_total_ms)}`,
+  };
+}
+
+function governanceImprovementLabel(value) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || Math.abs(amount) < 0.5) return `变化不明显`;
+  return amount > 0 ? `改善 ${Math.round(amount)}%` : `变慢 ${Math.abs(Math.round(amount))}%`;
+}
+
+function renderGovernanceCenter() {
+  governanceModel = buildGovernanceCenterModel({
+    integratedResult,
+    historyRecords: I,
+    accelerationStatus: cdnAccelerationStatus,
+  });
+  const model = governanceModel;
+  governanceHero.dataset.state = model.health;
+  governanceStateLabel.textContent = model.state === `idle`
+    ? `WAITING FOR BASELINE`
+    : model.health === `critical`
+      ? `ACTION REQUIRED`
+      : model.health === `warning`
+        ? `PLAN READY`
+        : `BASELINE HEALTHY`;
+  governanceTitle.textContent = model.title;
+  governanceTarget.textContent = model.target
+    ? `${J(model.target)} · ${model.attentionCount || 0} 项需要关注`
+    : `运行一次综合诊断后自动生成治理任务`;
+  governanceTarget.title = model.target || ``;
+  governanceFlow.querySelectorAll(`[data-stage]`).forEach((stage, index) => {
+    stage.dataset.stage = model.stages[index] || `pending`;
+  });
+
+  const current = governanceRouteSummary(model.route?.current);
+  const recommended = governanceRouteSummary(model.route?.recommended);
+  governanceRoute.innerHTML = `
+    <div><span>当前路径</span><strong>${$(current.label)}</strong><small>${$(current.detail)}</small></div>
+    <i aria-hidden="true">→</i>
+    <div class="${model.route?.changed ? `recommended` : ``}"><span>推荐路径</span><strong>${$(recommended.label)}</strong><small>${$(model.route ? `${recommended.detail} · ${governanceImprovementLabel(model.route.improvement)}` : recommended.detail)}</small></div>`;
+  governanceRetest.disabled = !model.route?.recommended || Boolean(integratedTaskID);
+  governanceRetest.textContent = model.route?.changed ? `使用推荐路径复测` : `按当前最佳路径复测`;
+
+  const comparison = model.comparison;
+  governanceComparison.innerHTML = comparison
+    ? `<div><span>端到端耗时</span><strong>${Y(comparison.totalBefore)} → ${Y(comparison.totalAfter)}</strong><small class="${comparison.totalImprovement >= 0 ? `positive` : `negative`}">${$(governanceImprovementLabel(comparison.totalImprovement))}</small></div>
+       <div><span>TTFB</span><strong>${Y(comparison.ttfbBefore)} → ${Y(comparison.ttfbAfter)}</strong><small class="${comparison.ttfbImprovement >= 0 ? `positive` : `negative`}">${$(governanceImprovementLabel(comparison.ttfbImprovement))}</small></div>`
+    : `<div><span>端到端耗时</span><strong>--</strong><small>完成推荐路径复测后生成</small></div>
+       <div><span>TTFB</span><strong>--</strong><small>需要同一目标的两次记录</small></div>`;
+
+  const recovery = model.acceleration;
+  const recoverable = Boolean(recovery?.active || recovery?.can_restore);
+  governanceRecovery.hidden = !recoverable;
+  if (recoverable) {
+    governanceRecovery.dataset.state = recovery.state || (recovery.active ? `active` : `warning`);
+    governanceRecoveryTitle.textContent = recovery.active
+      ? `${recovery.domain || `Cloudflare`} 的 CF IP 优选正在生效`
+      : `存在待恢复的系统代理快照`;
+    governanceRecoveryDetail.textContent = recovery.active
+      ? `${recovery.preferred_ip || `推荐 IP`} · 可随时停止并恢复原设置`
+      : recovery.message || `请先恢复原系统代理设置`;
+  }
+
+  governanceTaskCount.textContent = `${model.tasks.length} TASK${model.tasks.length === 1 ? `` : `S`}`;
+  governanceTaskList.innerHTML = model.tasks.length
+    ? model.tasks.map((task, index) => {
+        const directRetest = task.action === `retest_recommended_route`;
+        return `<article class="governance-task-item">
+          <span>${String(index + 1).padStart(2, `0`)}</span>
+          <i aria-hidden="true"></i>
+          <div><strong>${$(task.title)}</strong><p title="${$(task.detail)}">${$(task.detail)}</p><small>${$(String(task.module || `network`).toUpperCase())}</small></div>
+          <button class="quiet-button" type="button" ${directRetest ? `data-governance-action="retest"` : `data-governance-action="open-module" data-governance-module="${$(task.destination)}"`}>${directRetest ? `立即复测` : `前往处理`}</button>
+        </article>`;
+      }).join(``)
+    : model.state === `idle`
+      ? `<div class="governance-empty"><i></i><strong>尚未生成治理任务</strong><span>先运行综合诊断建立网络基线</span></div>`
+      : `<div class="governance-empty healthy"><i></i><strong>当前无需治理动作</strong><span>保留本次结果作为后续异常的对照基线</span></div>`;
+}
+
+function prefillGovernanceModule(module, target) {
+  if (!target) return;
+  if (module === `diagnosis`) setTargetField(m, targetScheme, target);
+  else if (module === `path-compare`) setTargetField(_n, pathCompareScheme, target);
+  else if (module === `dns-diagnosis`) An.value = Ar(target);
+  else if (module === `port-test`) Wn.value = Ar(target);
+  else if (module === `network-baseline`) sn.value = Ar(target);
+}
+
+function startGovernanceRetest() {
+  const route = governanceModel?.route;
+  if (!route?.recommended || !governanceModel?.target) {
+    R(`path-compare`);
+    return;
+  }
+  if (integratedTaskID) {
+    Q(`综合诊断正在运行`);
+    return;
+  }
+  const mode = [`system`, `direct`, `manual`].includes(route.mode) ? route.mode : `system`;
+  if (mode === `manual` && !route.manualProxyURL) {
+    prefillGovernanceModule(`path-compare`, governanceModel.target);
+    R(`path-compare`);
+    Q(`请先确认手动代理地址`);
+    return;
+  }
+  setTargetField(integratedTarget, integratedScheme, governanceModel.target);
+  const radio = document.querySelector(`input[name="integrated-proxy-mode"][value="${mode}"]`);
+  if (radio) radio.checked = true;
+  if (mode === `manual`) integratedProxyInput.value = route.manualProxyURL;
+  updateIntegratedProxyVisibility();
+  R(`integrated`);
+  integratedForm.requestSubmit();
+}
+
+async function handleGovernanceAction(event) {
+  const button = event.target.closest(`[data-governance-action]`);
+  if (!button) return;
+  const action = button.dataset.governanceAction;
+  if (action === `open-diagnosis`) {
+    if (governanceModel?.target) setTargetField(integratedTarget, integratedScheme, governanceModel.target);
+    R(`integrated`);
+    return;
+  }
+  if (action === `diagnose`) {
+    if (integratedTaskID) {
+      R(`integrated`);
+      Q(`综合诊断正在运行`);
+      return;
+    }
+    if (governanceModel?.target) setTargetField(integratedTarget, integratedScheme, governanceModel.target);
+    R(`integrated`);
+    integratedForm.requestSubmit();
+    return;
+  }
+  if (action === `retest`) {
+    startGovernanceRetest();
+    return;
+  }
+  if (action === `open-module`) {
+    const module = button.dataset.governanceModule || `integrated`;
+    prefillGovernanceModule(module, governanceModel?.target || ``);
+    R(module);
+    return;
+  }
+  if (action === `rollback`) {
+    await handleCFAccelerationStop();
+  }
 }
 window.runtime?.EventsOn &&
   (te(`integrated:progress`, (event) => {
@@ -12135,6 +12383,7 @@ function resetIntegratedRun() {
   integratedButton.querySelector(`.button-icon`).textContent = `■`;
   integratedButton.querySelector(`span:last-child`).textContent = `停止诊断`;
   setIntegratedControlsDisabled(true);
+  renderGovernanceCenter();
 }
 
 function updateIntegratedProgress(complete, total, label) {
@@ -12319,6 +12568,7 @@ function renderIntegratedResult(result) {
   ].map(([code, title, detail]) => `<article><span>${code}</span><strong>${$(title)}</strong><p>${$(detail)}</p></article>`).join(``);
   integratedResults.hidden = false;
   integratedCopyButton.disabled = false;
+  renderGovernanceCenter();
   if (!document.querySelector(`[data-module-view="integrated"]`)?.hidden)
     syncRoutePanel(`integrated`);
 }
@@ -13381,6 +13631,7 @@ function renderCFAccelerationStatus() {
   cdnAccelerationStop.hidden = !recoverable;
   cdnAccelerationStop.textContent = active ? `停止并恢复` : `重试恢复`;
   cdnAccelerationStop.disabled = cdnAccelerationBusy || !recoverable;
+  renderGovernanceCenter();
 }
 
 async function handleCFAccelerationApply() {
@@ -16762,6 +17013,7 @@ function vo() {
         `;
     }).join(``)));
   renderHistoryTrends();
+  renderGovernanceCenter();
 }
 var trendKindLabels = {
   integrated: `综合诊断`,
