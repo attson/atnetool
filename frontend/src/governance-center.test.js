@@ -73,6 +73,28 @@ test('governance model exposes recoverable acceleration state', () => {
   assert.equal(model.stages[2], 'active');
 });
 
+test('manual proxy recommendations never reuse redacted history credentials', () => {
+  const model = buildGovernanceCenterModel({
+    integratedResult: diagnosis({
+      paths: {
+        finding: { recommended_path_id: 'manual' },
+        paths: [
+          { id: 'system', label: '系统代理', success_rate: 1, p50_total_ms: 300 },
+          {
+            id: 'manual',
+            label: '手动代理',
+            configured_url: 'http://proxy.example:7890',
+            success_rate: 1,
+            p50_total_ms: 120,
+          },
+        ],
+      },
+    }),
+  });
+  assert.equal(model.route.mode, 'manual');
+  assert.equal(model.route.manualProxyURL, '');
+});
+
 test('governance model remains useful before the first diagnosis', () => {
   const model = buildGovernanceCenterModel();
   assert.equal(model.state, 'idle');

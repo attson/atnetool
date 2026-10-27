@@ -178,7 +178,9 @@ export function buildGovernanceCenterModel({
       recommended,
       improvement: routeImprovement,
       mode: recommended.id || 'system',
-      manualProxyURL: recommended.configured_url || '',
+      // History intentionally stores a redacted proxy URL. Never treat it as
+      // reusable credentials for an automatic governance retest.
+      manualProxyURL: recommended.id === 'manual' ? '' : recommended.configured_url || '',
       changed: Boolean(current && recommended.id !== current.id),
     } : null,
     comparison,
