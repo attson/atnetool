@@ -95,7 +95,7 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libgtk-3-dev libwebkit2gtk-4.1-dev
+          sudo apt-get install -y build-essential dpkg-dev libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Install NSIS
         if: matrix.label == 'windows-x64'
@@ -156,7 +156,7 @@ jobs:
         working-directory: ${{ runner.temp }}/release
         shell: bash
         run: |
-          find . -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.exe' \) -print0 \
+          find . -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.exe' -o -name '*.dmg' -o -name '*.deb' \) -print0 \
             | sort -z | while IFS= read -r -d '' file; do
                 printf '%s  %s\n' "$(sha256sum "$file" | awk '{print $1}')" "$(basename "$file")"
               done > SHA256SUMS
