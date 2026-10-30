@@ -89,6 +89,11 @@ func applyCDNRouteGovernance(result *CDNOptimizeResult) {
 	if result == nil || result.BestIP == "" {
 		return
 	}
+	// Do not advertise an action that the acceleration backend will reject.
+	// Keep the recommendation-validation failure as the primary next step.
+	if !result.TargetVerification.Verified || !result.TargetValidated {
+		return
+	}
 	switch result.EffectiveRoute {
 	case cdnRouteProxy:
 		result.Governance = []CDNGovernanceAdvice{

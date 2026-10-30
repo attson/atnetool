@@ -465,6 +465,7 @@ const EN = {
   '生成全局加速配置': 'Generate Global Acceleration Config',
   '全局加速配置包已生成': 'Global acceleration bundle generated',
   '配置包生成失败': 'Failed to generate the configuration bundle',
+  '请先完成 CF IP 优选': 'Run CF IP selection first',
   '正在验证推荐 IP 与目标域名的兼容性': 'Validating the recommended IP against the target domain',
 
   '基线检测说明': 'Baseline test details',
@@ -891,6 +892,10 @@ const PHRASES = {
   '静默超时': 'Silent timeout',
   '疑似接管': 'Possible interception',
   '目标未知': 'Unknown target',
+  '目标域名尚未确认使用 Cloudflare 代理': 'The target domain has not been confirmed behind Cloudflare',
+  '请检查代理状态后重新测试': 'Check the proxy status and run the test again',
+  '推荐 IP 尚未通过目标域名验证': 'The recommended IP has not passed target-domain validation',
+  '请切换到 HTTPing 后重新测试': 'Switch to HTTPing and run the test again',
   '节点类型': 'Node type',
   '地址': 'Address',
   '通道': 'Channel',

@@ -11285,6 +11285,20 @@ html[data-locale="en-US"] .patrol-header-meta .styled-select {
     white-space: nowrap;
 }
 
+.cdn-acceleration-actions button[data-blocked="true"],
+.cdn-governance-export-button[data-blocked="true"] {
+    cursor: help;
+    border-color: color-mix(in srgb, var(--amber) 38%, var(--line));
+}
+
+.cdn-acceleration-actions button[data-blocked="true"]:hover,
+.cdn-governance-export-button[data-blocked="true"]:hover {
+    color: var(--amber);
+    border-color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 9%, var(--surface-raised));
+    transform: translateY(-1px);
+}
+
 .cdn-actions {
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
