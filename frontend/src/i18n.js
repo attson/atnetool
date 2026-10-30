@@ -11,6 +11,8 @@ const EN = {
   '正在检查更新': 'Checking for updates',
   '正在连接 GitHub Release': 'Connecting to GitHub Releases',
   '当前已是最新版本': 'You are using the latest version',
+  '已完成检查': 'Check complete',
+  '知道了': 'Got it',
   '下载后会验证发布签名与文件完整性': 'The release signature and file integrity will be verified after download',
   '下载更新': 'Download Update',
   '检查中': 'Checking',

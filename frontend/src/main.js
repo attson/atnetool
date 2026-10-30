@@ -11899,10 +11899,9 @@ async function handleUpdateCheck() {
   renderUpdateState();
   try {
     appUpdateState = await checkForUpdates();
-    if (appUpdateState?.phase === `up_to_date`) {
-      Q(`当前已是最新版本`);
-      appUpdateInteractive = false;
-    }
+    // Keep the completed check visible until the user acknowledges it. A
+    // transient toast is easy to miss, especially when the check takes a
+    // moment or the pointer is away from the bottom of the window.
   } catch (error) {
     console.error(error);
     try {
@@ -11966,17 +11965,25 @@ function renderUpdateState() {
   const releaseVersion = state.release?.version || ``;
   const hiddenByChoice = releaseVersion && dismissedUpdateVersion === releaseVersion;
   const autoError = phase === `error` && !appUpdateInteractive;
-  const silentPhase = [`disabled`, `idle`, `up_to_date`].includes(phase) || (phase === `checking` && !appUpdateInteractive);
+  const silentPhase =
+    [`disabled`, `idle`].includes(phase) ||
+    (phase === `up_to_date` && !appUpdateInteractive) ||
+    (phase === `checking` && !appUpdateInteractive);
   updateBanner.hidden = Boolean(hiddenByChoice || autoError || silentPhase);
   updateBanner.dataset.state = phase;
   updateProgress.hidden = phase !== `downloading`;
   updateProgressBar.style.width = `${Math.max(0, Math.min(100, Number(state.progress) || 0))}%`;
-  updatePrimary.hidden = false;
+  updatePrimary.hidden = phase === `up_to_date`;
   updateSecondary.hidden = false;
   updatePrimary.disabled = appUpdateBusy || [`checking`, `downloading`, `verifying`, `applying`].includes(phase);
   updateSecondary.disabled = phase === `applying`;
 
   switch (phase) {
+    case `up_to_date`:
+      updateTitle.textContent = `当前已是最新版本`;
+      updateDetail.textContent = `当前版本 V${version} · 已完成检查`;
+      updateSecondary.textContent = `知道了`;
+      break;
     case `checking`:
       updateTitle.textContent = `正在检查更新`;
       updateDetail.textContent = `正在连接 GitHub Release`;

@@ -8605,6 +8605,11 @@ html[data-theme="light"] select {
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--cyan) 12%, transparent);
 }
 
+.version-button[data-state="up_to_date"] i {
+    background: var(--green);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
 .version-button[data-state="downloading"] i,
 .version-button[data-state="verifying"] i,
 .version-button[data-state="checking"] i {
@@ -8653,6 +8658,11 @@ html[data-theme="light"] select {
 }
 
 .update-banner[data-state="ready"] .update-signal {
+    background: var(--green);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+.update-banner[data-state="up_to_date"] .update-signal {
     background: var(--green);
     box-shadow: 0 0 0 5px color-mix(in srgb, var(--green) 12%, transparent);
 }
