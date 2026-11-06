@@ -51,7 +51,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-14,         platform: darwin/arm64,  label: macos-arm64 }
+          - { os: macos-15,         platform: darwin/arm64,  label: macos-arm64 }
           - { os: macos-15-intel,   platform: darwin/amd64,  label: macos-x64 }
           - { os: ubuntu-24.04,     platform: linux/amd64,   label: linux-x64 }
           - { os: ubuntu-24.04-arm, platform: linux/arm64,   label: linux-arm64 }
