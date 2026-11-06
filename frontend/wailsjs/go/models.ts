@@ -1,15 +1,15 @@
 export namespace main {
-	
+
 	export class BaselineFinding {
 	    layer: string;
 	    status: string;
 	    title: string;
 	    detail: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new BaselineFinding(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.layer = source["layer"];
@@ -22,11 +22,11 @@ export namespace main {
 	    action: string;
 	    title: string;
 	    detail: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new BaselineRemediation(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.action = source["action"];
@@ -38,11 +38,11 @@ export namespace main {
 	    ip: string;
 	    source: string;
 	    range?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNCandidate(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ip = source["ip"];
@@ -54,11 +54,11 @@ export namespace main {
 	    action: string;
 	    title: string;
 	    detail: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNGovernanceAdvice(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.action = source["action"];
@@ -75,11 +75,11 @@ export namespace main {
 	    download_tested: boolean;
 	    cf_colo?: string;
 	    cdn_provider?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNNodeComparison(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ip = source["ip"];
@@ -104,11 +104,11 @@ export namespace main {
 	    speed_delta_mbps: number;
 	    speed_improvement_percent: number;
 	    speed_multiplier: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNOptimizeComparison(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.comparable = source["comparable"];
@@ -123,7 +123,7 @@ export namespace main {
 	        this.speed_improvement_percent = source["speed_improvement_percent"];
 	        this.speed_multiplier = source["speed_multiplier"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -171,11 +171,11 @@ export namespace main {
 	    debug: boolean;
 	    route_mode?: string;
 	    upstream_proxy_url?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNOptimizeOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
@@ -214,11 +214,11 @@ export namespace main {
 	    listening: boolean;
 	    protocol?: string;
 	    latency_ms?: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new ProxyListenerResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.endpoint = source["endpoint"];
@@ -242,11 +242,11 @@ export namespace main {
 	    recommended_route: string;
 	    coverage: string;
 	    message: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new ProxyCompatibility(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.detected = source["detected"];
@@ -263,7 +263,7 @@ export namespace main {
 	        this.coverage = source["coverage"];
 	        this.message = source["message"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -298,11 +298,11 @@ export namespace main {
 	    has_ipv4: boolean;
 	    has_ipv6: boolean;
 	    mtu_risk: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new NetworkInterfaceSnapshot(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -331,11 +331,11 @@ export namespace main {
 	    interfaces?: NetworkInterfaceSnapshot[];
 	    proxy_mode: string;
 	    proxy_url?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new NetworkEnvironment(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.captured_at = source["captured_at"];
@@ -347,7 +347,7 @@ export namespace main {
 	        this.proxy_mode = source["proxy_mode"];
 	        this.proxy_url = source["proxy_url"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -383,11 +383,11 @@ export namespace main {
 	    cdn_provider?: string;
 	    local_address?: string;
 	    remote_address?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNProbeSample(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sequence = source["sequence"];
@@ -441,11 +441,11 @@ export namespace main {
 	    debug_errors?: string[];
 	    local_address?: string;
 	    remote_address?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNProbeResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.index = source["index"];
@@ -481,7 +481,7 @@ export namespace main {
 	        this.local_address = source["local_address"];
 	        this.remote_address = source["remote_address"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -505,11 +505,11 @@ export namespace main {
 	    level: string;
 	    title: string;
 	    message: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PatrolFinding(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.code = source["code"];
@@ -529,11 +529,11 @@ export namespace main {
 	    cdn_provider?: string;
 	    message: string;
 	    verification_error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNTargetVerification(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.status = source["status"];
@@ -556,11 +556,11 @@ export namespace main {
 	    active_tunnel_interfaces?: string[];
 	    hosts_applicable: boolean;
 	    message: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNPathEvidence(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.mode = source["mode"];
@@ -619,11 +619,11 @@ export namespace main {
 	    effective_route: string;
 	    upstream_proxy_url?: string;
 	    proxy_compatibility: ProxyCompatibility;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CDNOptimizeResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -673,7 +673,7 @@ export namespace main {
 	        this.upstream_proxy_url = source["upstream_proxy_url"];
 	        this.proxy_compatibility = this.convertValues(source["proxy_compatibility"], ProxyCompatibility);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -692,10 +692,10 @@ export namespace main {
 		    return a;
 		}
 	}
-	
-	
-	
-	
+
+
+
+
 	export class CFAccelerationStatus {
 	    active: boolean;
 	    state: string;
@@ -711,11 +711,11 @@ export namespace main {
 	    request_count: number;
 	    recovered: boolean;
 	    message: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new CFAccelerationStatus(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.active = source["active"];
@@ -738,11 +738,11 @@ export namespace main {
 	    successful_resolvers: number;
 	    matching_resolvers: number;
 	    different: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSComparison(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.successful_resolvers = source["successful_resolvers"];
@@ -761,11 +761,11 @@ export namespace main {
 	    address_difference: boolean;
 	    private_rewrite_risk: boolean;
 	    dnssec_observed: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSDeepComparison(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.reachable_resolvers = source["reachable_resolvers"];
@@ -783,11 +783,11 @@ export namespace main {
 	export class DNSDiagnoseOptions {
 	    task_id: string;
 	    domain: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSDiagnoseOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
@@ -798,11 +798,11 @@ export namespace main {
 	    action: string;
 	    title: string;
 	    detail: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSRemediation(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.action = source["action"];
@@ -816,11 +816,11 @@ export namespace main {
 	    status: string;
 	    title: string;
 	    detail: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSFinding(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.code = source["code"];
@@ -835,11 +835,11 @@ export namespace main {
 	    name: string;
 	    value: string;
 	    ttl: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSRecord(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.type = source["type"];
@@ -858,11 +858,11 @@ export namespace main {
 	    truncated: boolean;
 	    records?: DNSRecord[];
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSQueryResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.type = source["type"];
@@ -875,7 +875,7 @@ export namespace main {
 	        this.records = this.convertValues(source["records"], DNSRecord);
 	        this.error = source["error"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -902,11 +902,11 @@ export namespace main {
 	    reachable: boolean;
 	    duration_ms: number;
 	    queries: DNSQueryResult[];
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSResolverResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -917,7 +917,7 @@ export namespace main {
 	        this.duration_ms = source["duration_ms"];
 	        this.queries = this.convertValues(source["queries"], DNSQueryResult);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -952,11 +952,11 @@ export namespace main {
 	    findings: DNSFinding[];
 	    remediations: DNSRemediation[];
 	    environment: NetworkEnvironment;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSDiagnoseResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -975,7 +975,7 @@ export namespace main {
 	        this.remediations = this.convertValues(source["remediations"], DNSRemediation);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -994,7 +994,7 @@ export namespace main {
 		    return a;
 		}
 	}
-	
+
 	export class DNSProbeResult {
 	    name: string;
 	    server?: string;
@@ -1003,11 +1003,11 @@ export namespace main {
 	    ipv4?: string[];
 	    ipv6?: string[];
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DNSProbeResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -1019,10 +1019,10 @@ export namespace main {
 	        this.error = source["error"];
 	    }
 	}
-	
-	
-	
-	
+
+
+
+
 	export class DefaultRoute {
 	    family: string;
 	    interface?: string;
@@ -1030,11 +1030,11 @@ export namespace main {
 	    local_ip?: string;
 	    metric?: number;
 	    selected: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DefaultRoute(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.family = source["family"];
@@ -1049,11 +1049,11 @@ export namespace main {
 	    target_url: string;
 	    proxy_mode: string;
 	    proxy_url?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DiagOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.target_url = source["target_url"];
@@ -1106,11 +1106,11 @@ export namespace main {
 	    proxy_detected: boolean;
 	    proxy_url?: string;
 	    proxy_message: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DiagResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.success = source["success"];
@@ -1164,11 +1164,11 @@ export namespace main {
 	    target_url: string;
 	    proxy_mode: string;
 	    proxy_url?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DiagnosisTaskOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
@@ -1190,11 +1190,11 @@ export namespace main {
 	    organisation?: string;
 	    source?: string;
 	    confidence?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new TraceGeo(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ip = source["ip"];
@@ -1218,11 +1218,11 @@ export namespace main {
 	    timed_out: boolean;
 	    reached: boolean;
 	    geo?: TraceGeo;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new TraceHop(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.hop = source["hop"];
@@ -1232,7 +1232,7 @@ export namespace main {
 	        this.reached = source["reached"];
 	        this.geo = this.convertValues(source["geo"], TraceGeo);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1265,11 +1265,11 @@ export namespace main {
 	    geo_resolved: number;
 	    geo_error?: string;
 	    checked_at: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new TraceResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.success = source["success"];
@@ -1286,7 +1286,7 @@ export namespace main {
 	        this.geo_error = source["geo_error"];
 	        this.checked_at = source["checked_at"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1314,11 +1314,11 @@ export namespace main {
 	    diagnosis: DiagResult;
 	    traceroute: TraceResult;
 	    environment: NetworkEnvironment;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new DiagnosisTaskResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -1330,7 +1330,7 @@ export namespace main {
 	        this.traceroute = this.convertValues(source["traceroute"], TraceResult);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1355,11 +1355,11 @@ export namespace main {
 	    title: string;
 	    detail: string;
 	    module: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new IntegratedRemediation(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.priority = source["priority"];
@@ -1374,11 +1374,11 @@ export namespace main {
 	    status: string;
 	    title: string;
 	    detail: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new IntegratedFinding(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.layer = source["layer"];
@@ -1408,11 +1408,11 @@ export namespace main {
 	    http: DiagnosisTaskResult;
 	    paths: PathCompareResult;
 	    environment: NetworkEnvironment;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new IntegratedDiagnosisResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -1436,7 +1436,7 @@ export namespace main {
 	        this.paths = this.convertValues(source["paths"], PathCompareResult);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1459,11 +1459,11 @@ export namespace main {
 	    action: string;
 	    title: string;
 	    detail: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PortTestRemediation(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.action = source["action"];
@@ -1476,11 +1476,11 @@ export namespace main {
 	    status: string;
 	    title: string;
 	    detail: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PortTestFinding(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.code = source["code"];
@@ -1508,11 +1508,11 @@ export namespace main {
 	    tls_valid: boolean;
 	    message: string;
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PortProbeResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.index = source["index"];
@@ -1555,11 +1555,11 @@ export namespace main {
 	    findings: PortTestFinding[];
 	    remediations: PortTestRemediation[];
 	    environment: NetworkEnvironment;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PortTestResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -1582,7 +1582,7 @@ export namespace main {
 	        this.remediations = this.convertValues(source["remediations"], PortTestRemediation);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1616,11 +1616,11 @@ export namespace main {
 	    proxy_url?: string;
 	    remote_ip?: string;
 	    cf_colo?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PathCompareSample(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sequence = source["sequence"];
@@ -1658,11 +1658,11 @@ export namespace main {
 	    jitter_ms: number;
 	    remote_ip?: string;
 	    proxy_url?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PathCompareRoute(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1684,7 +1684,7 @@ export namespace main {
 	        this.remote_ip = source["remote_ip"];
 	        this.proxy_url = source["proxy_url"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1710,11 +1710,11 @@ export namespace main {
 	    detail: string;
 	    recommended_path_id?: string;
 	    improvement_percent: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PathCompareFinding(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.code = source["code"];
@@ -1740,11 +1740,11 @@ export namespace main {
 	    finding: PathCompareFinding;
 	    paths: PathCompareRoute[];
 	    environment: NetworkEnvironment;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PathCompareResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -1762,7 +1762,7 @@ export namespace main {
 	        this.paths = this.convertValues(source["paths"], PathCompareRoute);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1798,11 +1798,11 @@ export namespace main {
 	    system_proxy_endpoint?: string;
 	    dns_mode: string;
 	    correlation: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new LocalNetworkAssessment(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.status = source["status"];
@@ -1831,11 +1831,11 @@ export namespace main {
 	    remote_ip?: string;
 	    interface?: string;
 	    message: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new IPStackProbeResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.family = source["family"];
@@ -1865,11 +1865,11 @@ export namespace main {
 	    remediations?: BaselineRemediation[];
 	    local_network: LocalNetworkAssessment;
 	    environment: NetworkEnvironment;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new NetworkBaselineResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -1890,7 +1890,7 @@ export namespace main {
 	        this.local_network = this.convertValues(source["local_network"], LocalNetworkAssessment);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1914,11 +1914,11 @@ export namespace main {
 	    name: string;
 	    url: string;
 	    category?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new SiteTarget(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1931,18 +1931,18 @@ export namespace main {
 	    index: number;
 	    target: SiteTarget;
 	    result: DiagResult;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new SiteProbeResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.index = source["index"];
 	        this.target = this.convertValues(source["target"], SiteTarget);
 	        this.result = this.convertValues(source["result"], DiagResult);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -1977,11 +1977,11 @@ export namespace main {
 	    results: SiteProbeResult[];
 	    findings: PatrolFinding[];
 	    environment: NetworkEnvironment;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new SitePatrolResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -2000,7 +2000,7 @@ export namespace main {
 	        this.findings = this.convertValues(source["findings"], PatrolFinding);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2029,11 +2029,11 @@ export namespace main {
 	    cf_ray?: string;
 	    cf_colo?: string;
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StabilitySample(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sequence = source["sequence"];
@@ -2052,11 +2052,11 @@ export namespace main {
 	    checked_at: string;
 	    previous: string;
 	    current: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StabilityRouteChange(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sequence = source["sequence"];
@@ -2075,11 +2075,11 @@ export namespace main {
 	    peak_latency_ms: number;
 	    resolved: boolean;
 	    detail: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StabilityIncident(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.type = source["type"];
@@ -2125,11 +2125,11 @@ export namespace main {
 	    finding: PatrolFinding;
 	    samples: StabilitySample[];
 	    environment: NetworkEnvironment;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StabilityResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -2164,7 +2164,7 @@ export namespace main {
 	        this.samples = this.convertValues(source["samples"], StabilitySample);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2199,11 +2199,11 @@ export namespace main {
 	    integrated?: IntegratedDiagnosisResult;
 	    traceroute?: TraceResult;
 	    environment: NetworkEnvironment;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new HistoryRecord(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.schema_version = source["schema_version"];
@@ -2222,7 +2222,7 @@ export namespace main {
 	        this.traceroute = this.convertValues(source["traceroute"], TraceResult);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2241,7 +2241,7 @@ export namespace main {
 		    return a;
 		}
 	}
-	
+
 	export class ImportedReportSummary {
 	    format_version: number;
 	    application: string;
@@ -2257,11 +2257,11 @@ export namespace main {
 	    metrics?: Record<string, any>;
 	    proxy?: Record<string, any>;
 	    traceroute?: Record<string, any>;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new ImportedReportSummary(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.format_version = source["format_version"];
@@ -2286,11 +2286,11 @@ export namespace main {
 	    record: HistoryRecord;
 	    files: string[];
 	    warnings?: string[];
-	
+
 	    static createFrom(source: any = {}) {
 	        return new ImportedReport(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.filename = source["filename"];
@@ -2299,7 +2299,7 @@ export namespace main {
 	        this.files = source["files"];
 	        this.warnings = source["warnings"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2318,17 +2318,17 @@ export namespace main {
 		    return a;
 		}
 	}
-	
+
 	export class IntegratedDiagnosisOptions {
 	    task_id: string;
 	    target_url: string;
 	    proxy_mode: string;
 	    proxy_url?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new IntegratedDiagnosisOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
@@ -2337,38 +2337,38 @@ export namespace main {
 	        this.proxy_url = source["proxy_url"];
 	    }
 	}
-	
-	
-	
-	
+
+
+
+
 	export class NetworkBaselineOptions {
 	    task_id: string;
 	    target_host: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new NetworkBaselineOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
 	        this.target_host = source["target_host"];
 	    }
 	}
-	
-	
-	
-	
+
+
+
+
 	export class PathCompareOptions {
 	    task_id: string;
 	    target_url: string;
 	    manual_proxy_url?: string;
 	    samples: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PathCompareOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
@@ -2377,22 +2377,22 @@ export namespace main {
 	        this.samples = source["samples"];
 	    }
 	}
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
 	export class PortTestOptions {
 	    task_id: string;
 	    target: string;
 	    ports: number[];
 	    concurrency: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new PortTestOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
@@ -2401,21 +2401,21 @@ export namespace main {
 	        this.concurrency = source["concurrency"];
 	    }
 	}
-	
-	
-	
-	
+
+
+
+
 	export class SitePatrolOptions {
 	    task_id: string;
 	    targets: SiteTarget[];
 	    proxy_mode: string;
 	    proxy_url?: string;
 	    concurrency: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new SitePatrolOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
@@ -2424,7 +2424,7 @@ export namespace main {
 	        this.proxy_url = source["proxy_url"];
 	        this.concurrency = source["concurrency"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -2443,10 +2443,10 @@ export namespace main {
 		    return a;
 		}
 	}
-	
-	
-	
-	
+
+
+
+
 	export class StabilityOptions {
 	    task_id: string;
 	    target_url: string;
@@ -2456,11 +2456,11 @@ export namespace main {
 	    interval_ms: number;
 	    latency_threshold_ms: number;
 	    failure_threshold_percent: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StabilityOptions(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
@@ -2473,23 +2473,23 @@ export namespace main {
 	        this.failure_threshold_percent = source["failure_threshold_percent"];
 	    }
 	}
-	
-	
-	
-	
-	
-	
+
+
+
+
+
+
 	export class UpdateRelease {
 	    version: string;
 	    notes?: string;
 	    published_at?: string;
 	    asset_name: string;
 	    asset_size: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new UpdateRelease(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.version = source["version"];
@@ -2509,11 +2509,11 @@ export namespace main {
 	    total: number;
 	    last_checked_at?: string;
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new UpdateState(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.phase = source["phase"];
@@ -2526,7 +2526,7 @@ export namespace main {
 	        this.last_checked_at = source["last_checked_at"];
 	        this.error = source["error"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;

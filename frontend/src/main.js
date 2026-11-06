@@ -10,6 +10,7 @@ import {
   getCFAccelerationBlockReason,
   getCDNGovernanceBlockReason,
 } from './cdn-actions.js';
+import { summariseNetworkOverview } from './network-overview.js';
 
 (function () {
   let e = document.createElement(`link`).relList;
@@ -14573,28 +14574,27 @@ function renderNetworkOverviewResult() {
       };
     })
     .filter(Boolean);
-  const hasCritical = baselineIssues.some((item) => item.status === `critical`) || (patrolResults.length > 0 && patrolResults.every((item) => !item.result?.success));
-  const hasWarning = baselineFindings.some((item) => item.status === `warning`) || patrolIssues.length > 0;
-  const level = hasCritical ? `critical` : hasWarning ? `warning` : `healthy`;
   const selectedCount = j.filter((target) => target.selected).length;
   const successCount = Number(gr?.success_count) || patrolResults.filter((item) => item.result?.success).length;
-  const issueCount = baselineIssues.length + patrolIssues.length;
-  const visibleIssues = [...baselineIssues, ...patrolIssues].slice(0, 8);
+  const summary = summariseNetworkOverview({
+    baseline: _r,
+    patrol: gr,
+    baselineIssues,
+    patrolIssues,
+    selectedCount,
+    successCount,
+  });
+  const issueCount = summary.issues.length;
+  const visibleIssues = summary.issues.slice(0, 8);
   const hiddenIssueCount = Math.max(0, issueCount - visibleIssues.length);
   const patrolFinding = (gr?.findings || []).find((item) => item.level !== `good`);
   const recommendations = [
     ...(patrolFinding ? [{ title: patrolFinding.title, detail: patrolFinding.message }] : []),
     ...((_r?.remediations || []).map((item) => ({ title: item.title, detail: item.detail }))),
   ].filter((item, index, items) => item?.title && items.findIndex((candidate) => candidate.title === item.title) === index).slice(0, 4);
-  const headline = hasCritical
-    ? `当前网络存在阻断问题`
-    : hasWarning
-      ? `整体网络可用，但存在需要关注的项目`
-      : `当前网络与常用站点状态正常`;
-
-  networkOverviewOutput.dataset.state = level;
-  networkOverviewStatus.textContent = headline;
-  networkOverviewDetail.textContent = `${successCount} / ${selectedCount} 个站点通过巡检`;
+  networkOverviewOutput.dataset.state = summary.level;
+  networkOverviewStatus.textContent = summary.headline;
+  networkOverviewDetail.textContent = summary.detail;
   networkOverviewResult.innerHTML = `
     <div class="network-overview-metrics">
       <div><span>网络基线</span><strong>${_r ? $(_r.status === `completed` ? `已完成` : _r.status || `部分完成`) : `未完成`}</strong></div>
