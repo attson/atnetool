@@ -10524,9 +10524,10 @@ html[data-theme="light"] .trace-view-tab.active {
 }
 
 .field-label-row .info-tip::after {
-    right: 0;
-    left: auto;
+    right: auto;
+    left: 0;
     transform: translateY(-3px);
+    transform-origin: top left;
 }
 
 .field-label-row .info-tip:hover::after,
