@@ -10,6 +10,7 @@ import {
   getCFAccelerationBlockReason,
   getCDNGovernanceBlockReason,
 } from './cdn-actions.js';
+import { summariseNetworkOverview } from './network-overview.js';
 
 (function () {
   let e = document.createElement(`link`).relList;
@@ -9902,7 +9903,7 @@ var Ce = document.querySelector(`#app`);
 Ce.innerHTML = `
     <div class="app-frame">
         <header class="topbar">
-            <div class="brand">
+            <button class="brand" id="brand-home" type="button" data-open-module="scenario-hub" aria-label="返回任务首页" title="返回任务首页">
                 <div class="brand-mark" aria-hidden="true">
                     <img src="/appicon.svg" alt="">
                 </div>
@@ -9910,10 +9911,10 @@ Ce.innerHTML = `
                     <div class="brand-name">ATNetool</div>
                     <div class="brand-subtitle">NETWORK ASSISTANT</div>
                 </div>
-            </div>
+            </button>
             <div class="module-page-heading">
-                <h1 id="module-page-title">诊断中心 · 综合总览</h1>
-                <p id="module-page-subtitle">一次采集本地网络、DNS、端口、服务链路与代理路径</p>
+                <h1 id="module-page-title">任务场景</h1>
+                <p id="module-page-subtitle">网络检查、网站诊断与 Cloudflare 加速</p>
             </div>
             <div class="topbar-actions">
                 <div class="engine-state">
@@ -9944,36 +9945,93 @@ Ce.innerHTML = `
             </div>
         </section>
 
-        <nav class="module-nav" aria-label="产品模块">
-            <button class="module-nav-item active" type="button" data-module-group="diagnosis" aria-selected="true">
-                <span>01</span><strong>诊断中心</strong>
+        <nav class="module-nav scenario-sidebar" aria-label="任务场景">
+            <button class="module-nav-item" type="button" data-module-group="network" aria-selected="false">
+                <span>01</span><strong>整体网速检查</strong>
             </button>
-            <button class="module-nav-item" type="button" data-module-group="monitoring" aria-selected="false">
-                <span>02</span><strong>网络监测</strong>
+            <button class="module-nav-item" type="button" data-module-group="site" aria-selected="false">
+                <span>02</span><strong>指定网站检查</strong>
             </button>
-            <button class="module-nav-item" type="button" data-module-group="governance" aria-selected="false">
-                <span>03</span><strong>优化治理</strong>
+            <button class="module-nav-item" type="button" data-module-group="cloudflare" aria-selected="false">
+                <span>03</span><strong>Cloudflare 网站加速</strong>
             </button>
-            <button class="module-nav-item" type="button" data-module-group="records" aria-selected="false">
-                <span>04</span><strong>历史报告</strong>
+            <div class="scenario-nav-divider"></div>
+            <div class="scenario-nav-heading scenario-nav-heading-secondary"><span>全局功能</span><small>WORKSPACE</small></div>
+            <button class="module-nav-item module-nav-item-secondary" type="button" data-module-group="governance" aria-selected="false">
+                <span>✓</span><strong>治理任务</strong>
             </button>
+            <button class="module-nav-item module-nav-item-secondary" type="button" data-module-group="records" aria-selected="false">
+                <span>▤</span><strong>历史报告</strong>
+            </button>
+            <div class="scenario-privacy-note"><i></i><span><strong>结果仅保存在本机</strong><small>可导出报告用于协作</small></span></div>
         </nav>
 
         <nav class="module-subnav" id="module-subnav" aria-label="模块视图"></nav>
 
         <main>
+            <section class="scenario-hub module-view" id="scenario-hub" data-module-view="scenario-hub" role="tabpanel" aria-label="任务场景">
+                <div class="scenario-card-grid">
+                    <button class="scenario-card" type="button" data-open-module="network-overview">
+                        <span class="scenario-card-code">NET</span><small>约 1-3 分钟</small>
+                        <strong>整体网速检查</strong>
+                        <p>快速判断当前网络是否正常，并定位常见连接问题。</p>
+                        <em>网络基线 · 多站点巡检 · 治理建议</em>
+                        <b>开始检查 <i aria-hidden="true">›</i></b>
+                    </button>
+                    <button class="scenario-card" type="button" data-open-module="integrated">
+                        <span class="scenario-card-code">WEB</span><small>约 20 秒起</small>
+                        <strong>指定网站检查</strong>
+                        <p>输入网站，快速定位无法访问、响应慢等问题。</p>
+                        <em>一键检查 · 5 类能力 · 持续观察</em>
+                        <b>输入网站 <i aria-hidden="true">›</i></b>
+                    </button>
+                    <button class="scenario-card" type="button" data-open-module="cdn-optimize">
+                        <span class="scenario-card-code">CF</span><small>约 2-10 分钟</small>
+                        <strong>Cloudflare 网站加速</strong>
+                        <p>为网站筛选更快的 Cloudflare 节点，并安全应用。</p>
+                        <em>IP 优选 · 下载测速 · 应用与恢复</em>
+                        <b>开始优选 <i aria-hidden="true">›</i></b>
+                    </button>
+                </div>
+            </section>
+
+            <section class="network-overview module-view" id="network-overview" data-module-view="network-overview" role="tabpanel" aria-labelledby="network-overview-title">
+                <div class="network-overview-header">
+                    <h1 id="network-overview-title">检查当前网络与常用站点</h1>
+                </div>
+                <form class="network-overview-form" id="network-overview-form" novalidate>
+                    <div class="preset-summary">
+                        <span>检查范围</span><strong id="network-overview-selection-summary">0 个站点</strong>
+                    </div>
+                    <button class="primary-button" id="network-overview-button" type="submit"><span class="button-icon" aria-hidden="true">▶</span><span>开始整体检查</span></button>
+                </form>
+                <div class="network-overview-output" id="network-overview-output" data-state="idle">
+                    <div class="network-overview-status">
+                        <div><span>任务状态</span><strong id="network-overview-status">等待整体检查</strong><p id="network-overview-detail">预计 1-3 分钟，每个站点最多读取 4 KiB</p></div>
+                        <em id="network-overview-progress">0 / 2</em>
+                    </div>
+                    <div class="network-overview-stages">
+                        <article data-network-stage="baseline"><span>01</span><div><strong>网络基线</strong><p>接口、路由、DNS、出口与代理</p></div><em>等待</em></article>
+                        <article data-network-stage="patrol"><span>02</span><div><strong>多站点巡检</strong><p>DNS、连接、TLS、TTFB 与总耗时</p></div><em>等待</em></article>
+                    </div>
+                    <div class="network-overview-result" id="network-overview-result" hidden></div>
+                </div>
+                <p class="network-overview-boundary">结果来自本机网络环境和真实网站的小流量请求，不等同于运营商签约带宽测速。</p>
+            </section>
+
             <section class="integrated module-view" id="integrated" data-module-view="integrated" role="tabpanel" aria-labelledby="integrated-title">
                 <div class="integrated-header">
                     <div class="panel-heading">
                         <span class="panel-index">01</span>
                         <div>
-                            <span class="eyebrow">FULL STACK DIAGNOSIS</span>
-                            <h1 id="integrated-title">综合诊断</h1>
+                            <span class="eyebrow">SCENARIO 02 · WEBSITE CHECK</span>
+                            <h1 id="integrated-title">检查一个网站</h1>
                         </div>
                     </div>
                 </div>
 
-                <form class="integrated-form" id="integrated-form" novalidate>
+                <form class="integrated-form site-check-form" id="integrated-form" novalidate>
+                    <div class="site-check-primary-row">
                     <div class="target-control integrated-target-control url-target-control">
                         <div class="field-label-row">
                             <label for="integrated-target">目标域名或 URL</label>
@@ -9990,7 +10048,13 @@ Ce.innerHTML = `
                         </div>
                         <p class="field-message" id="integrated-target-message"></p>
                     </div>
+                    <button class="primary-button integrated-run" id="integrated-button" type="submit">
+                        <span class="button-icon" aria-hidden="true">▶</span><span>开始检查</span>
+                    </button>
+                    </div>
 
+                    <details class="advanced-settings">
+                        <summary><span>高级设置</span><small>默认使用系统连接策略</small></summary>
                     <fieldset class="proxy-control integrated-proxy-control">
                         <legend>连接策略</legend>
                         <div class="segmented-control">
@@ -10008,10 +10072,7 @@ Ce.innerHTML = `
                             <p class="field-message" id="integrated-proxy-message">HTTP · HTTPS · SOCKS5</p>
                         </div>
                     </fieldset>
-
-                    <button class="primary-button integrated-run" id="integrated-button" type="submit">
-                        <span class="button-icon" aria-hidden="true">▶</span><span>运行综合诊断</span>
-                    </button>
+                    </details>
                 </form>
 
                 <div class="integrated-output" id="integrated-output" data-state="idle">
@@ -10045,7 +10106,6 @@ Ce.innerHTML = `
                             <span class="integrated-result-state" id="integrated-result-state">等待结果</span>
                         </div>
                         <div class="integrated-evidence" id="integrated-evidence"></div>
-                        <div class="integrated-route-host" id="integrated-route-host"></div>
                         <div class="integrated-result-grid">
                             <section>
                                 <div class="integrated-section-title"><span>FINDINGS</span><strong id="integrated-findings-title">分层结论</strong></div>
@@ -10056,9 +10116,19 @@ Ce.innerHTML = `
                                 <div id="integrated-remediations"></div>
                             </section>
                         </div>
-                        <button class="secondary-button integrated-copy" id="integrated-copy-button" type="button" disabled>
-                            <span aria-hidden="true">▣</span><span>复制综合诊断报告</span>
-                        </button>
+                        <div class="monitor-prompt">
+                            <div><strong>需要确认问题是否偶发？</strong><p>持续观察会沿用本次网站和连接策略，不需要重新填写目标。</p></div>
+                            <button class="secondary-button" id="integrated-monitor-button" type="button">持续观察</button>
+                        </div>
+                        <details class="result-details">
+                            <summary><span><strong>详细证据</strong><small>地域链路、原始跳点与完整诊断报告</small></span><em>展开</em></summary>
+                            <div class="result-details-body">
+                                <div class="integrated-route-host" id="integrated-route-host"></div>
+                                <button class="secondary-button integrated-copy" id="integrated-copy-button" type="button" disabled>
+                                    <span aria-hidden="true">▣</span><span>复制综合诊断报告</span>
+                                </button>
+                            </div>
+                        </details>
                     </div>
                 </div>
             </section>
@@ -10468,6 +10538,13 @@ Ce.innerHTML = `
                             <option value="900">15 分钟</option>
                         </select>
                     </label>
+                    <button class="primary-button stability-button" id="stability-button" type="submit">
+                        <span class="button-icon" aria-hidden="true">▶</span>
+                        <span>开始监控</span>
+                    </button>
+                    <details class="advanced-settings stability-advanced">
+                        <summary><span>高级设置</span><small>默认每秒采样</small></summary>
+                        <div class="advanced-settings-grid">
                     <label class="stability-duration">
                         <span>采样间隔</span>
                         <select id="stability-interval">
@@ -10495,10 +10572,8 @@ Ce.innerHTML = `
                             <option value="20">20%</option>
                         </select>
                     </label>
-                    <button class="primary-button stability-button" id="stability-button" type="submit">
-                        <span class="button-icon" aria-hidden="true">▶</span>
-                        <span>开始监控</span>
-                    </button>
+                        </div>
+                    </details>
                 </form>
 
                 <div class="stability-workspace" data-state="idle" id="stability-workspace">
@@ -10539,17 +10614,26 @@ Ce.innerHTML = `
                         </div>
                     </div>
                     <div class="patrol-header-meta">
-                        <select class="patrol-proxy-mode" id="patrol-proxy-mode" aria-label="巡检连接策略" title="巡检连接策略">
-                            <option value="system">自动代理</option>
-                            <option value="direct">绕过代理</option>
-                            <option value="manual">手动代理</option>
-                        </select>
                         <span class="info-tip" tabindex="0" role="note" aria-label="巡检说明"
                               data-tooltip="每个站点最多读取 4 KiB，最多 6 路并发。">i</span>
                     </div>
                 </div>
 
                 <form class="patrol-form" id="patrol-form" novalidate>
+                    <div class="preset-summary patrol-preset-summary">
+                        <span>本次巡检</span><strong id="patrol-selection-summary">已选择常用站点</strong><i></i><strong id="patrol-concurrency-summary">4 路并发</strong><i></i><strong id="patrol-connection-summary">自动连接策略</strong>
+                    </div>
+                    <details class="advanced-settings patrol-advanced">
+                        <summary><span>巡检目标与高级设置</span><small>可调整站点、并发和连接策略</small></summary>
+                        <div class="patrol-advanced-body">
+                    <label class="patrol-connection-setting">
+                        <span>连接策略</span>
+                        <select class="patrol-proxy-mode" id="patrol-proxy-mode" aria-label="巡检连接策略" title="巡检连接策略">
+                            <option value="system">自动代理</option>
+                            <option value="direct">绕过代理</option>
+                            <option value="manual">手动代理</option>
+                        </select>
+                    </label>
                     <div class="patrol-proxy-address" id="patrol-proxy-address" hidden>
                         <label for="patrol-proxy-input">代理地址</label>
                         <div>
@@ -10586,6 +10670,8 @@ Ce.innerHTML = `
                                autocapitalize="none" spellcheck="false" placeholder="https://example.com/" aria-label="自定义站点 URL">
                         <button class="quiet-button" id="patrol-add-button" type="button">添加目标</button>
                     </div>
+                        </div>
+                    </details>
                     <button class="primary-button patrol-run-button" id="patrol-button" type="submit">
                         <span class="button-icon" aria-hidden="true">▶</span>
                         <span>运行站点巡检</span>
@@ -10852,17 +10938,25 @@ Ce.innerHTML = `
 
                 <div class="baseline-output" id="baseline-output" data-state="idle">
                     <div class="baseline-statusbar">
-                        <div>
-                            <span class="eyebrow">LAYER STATUS</span>
+                        <div class="baseline-status-copy">
+                            <span class="eyebrow">检测结论</span>
                             <strong id="baseline-status">等待检测</strong>
+                            <p id="baseline-summary">完成后会说明哪些项目正常、哪些需要处理。</p>
                         </div>
-                        <span id="baseline-duration">NOT STARTED</span>
+                        <div class="baseline-status-meta">
+                            <div class="baseline-status-counts" id="baseline-status-counts" hidden>
+                                <span data-level="healthy"><strong id="baseline-healthy-count">0</strong> 正常</span>
+                                <span data-level="warning"><strong id="baseline-warning-count">0</strong> 需关注</span>
+                                <span data-level="critical"><strong id="baseline-critical-count">0</strong> 异常</span>
+                            </div>
+                            <span id="baseline-duration">未开始</span>
+                        </div>
                     </div>
                     <div class="baseline-layers" id="baseline-layers">
-                        <article data-layer="local"><span>01 / LOCAL</span><i></i><strong>本机接口</strong><p>--</p></article>
-                        <article data-layer="dns"><span>02 / DNS</span><i></i><strong>域名解析</strong><p>--</p></article>
-                        <article data-layer="egress"><span>03 / EGRESS</span><i></i><strong>公网出口</strong><p>--</p></article>
-                        <article data-layer="proxy"><span>04 / PROXY</span><i></i><strong>代理监听</strong><p>--</p></article>
+                        <article data-layer="local"><span>01 / LOCAL</span><em>未检测</em><strong>本机接口</strong><p>--</p></article>
+                        <article data-layer="dns"><span>02 / DNS</span><em>未检测</em><strong>域名解析</strong><p>--</p></article>
+                        <article data-layer="egress"><span>03 / EGRESS</span><em>未检测</em><strong>公网出口</strong><p>--</p></article>
+                        <article data-layer="proxy"><span>04 / PROXY</span><em>未检测</em><strong>代理监听</strong><p>--</p></article>
                     </div>
 
                     <div class="baseline-evidence">
@@ -11340,6 +11434,9 @@ var Pe = document.querySelector(`#trace-list`),
   Ct = document.querySelector(`#patrol-form`),
   wt = document.querySelector(`#patrol-targets`),
   Tt = document.querySelector(`#patrol-selection-count`),
+  patrolSelectionSummary = document.querySelector(`#patrol-selection-summary`),
+  patrolConcurrencySummary = document.querySelector(`#patrol-concurrency-summary`),
+  patrolConnectionSummary = document.querySelector(`#patrol-connection-summary`),
   patrolTargetToggle = document.querySelector(`#patrol-target-toggle`),
   Et = document.querySelector(`#patrol-concurrency`),
   Dt = document.querySelector(`#patrol-custom-name`),
@@ -11441,6 +11538,11 @@ var Pe = document.querySelector(`#trace-list`),
   cn = document.querySelector(`#baseline-output`),
   ln = document.querySelector(`#baseline-status`),
   un = document.querySelector(`#baseline-duration`),
+  baselineSummary = document.querySelector(`#baseline-summary`),
+  baselineStatusCounts = document.querySelector(`#baseline-status-counts`),
+  baselineHealthyCount = document.querySelector(`#baseline-healthy-count`),
+  baselineWarningCount = document.querySelector(`#baseline-warning-count`),
+  baselineCriticalCount = document.querySelector(`#baseline-critical-count`),
   dn = document.querySelector(`#baseline-layers`),
   fn = document.querySelector(`#baseline-routes`),
   pn = document.querySelector(`#baseline-dns`),
@@ -11557,9 +11659,21 @@ const integratedForm = document.querySelector(`#integrated-form`),
   integratedRemediations = document.querySelector(`#integrated-remediations`),
   integratedEvidence = document.querySelector(`#integrated-evidence`),
   integratedRouteHost = document.querySelector(`#integrated-route-host`),
-  integratedCopyButton = document.querySelector(`#integrated-copy-button`);
+  integratedCopyButton = document.querySelector(`#integrated-copy-button`),
+  integratedMonitorButton = document.querySelector(`#integrated-monitor-button`);
 let integratedTaskID = null,
   integratedResult = null;
+const networkOverviewForm = document.querySelector(`#network-overview-form`),
+  networkOverviewSelectionSummary = document.querySelector(`#network-overview-selection-summary`),
+  networkOverviewButton = document.querySelector(`#network-overview-button`),
+  networkOverviewOutput = document.querySelector(`#network-overview-output`),
+  networkOverviewStatus = document.querySelector(`#network-overview-status`),
+  networkOverviewDetail = document.querySelector(`#network-overview-detail`),
+  networkOverviewProgress = document.querySelector(`#network-overview-progress`),
+  networkOverviewResult = document.querySelector(`#network-overview-result`),
+  networkOverviewStages = [...document.querySelectorAll(`[data-network-stage]`)];
+let networkOverviewRunning = false,
+  networkOverviewCancelled = false;
 const governanceCenter = document.querySelector(`#governance-center`),
   governanceHero = document.querySelector(`#governance-hero`),
   governanceStateLabel = document.querySelector(`#governance-state-label`),
@@ -11576,56 +11690,61 @@ const governanceCenter = document.querySelector(`#governance-center`),
   governanceTaskList = document.querySelector(`#governance-task-list`);
 let governanceModel = null;
 const moduleGroups = {
-    diagnosis: [
-      `integrated`,
-      `diagnosis`,
-      `dns-diagnosis`,
-      `port-test`,
-      `network-baseline`,
-    ],
-    monitoring: [`stability`, `site-patrol`],
-    governance: [`governance-center`, `path-compare`, `cdn-optimize`],
+    network: [`network-overview`, `network-baseline`, `site-patrol`],
+    site: [`integrated`],
+    cloudflare: [`cdn-optimize`],
+    governance: [`governance-center`],
     records: [`history`, `history-trends`],
   },
   moduleMeta = {
+    "scenario-hub": {
+      label: `场景首页`,
+      title: `任务场景`,
+      subtitle: `网络检查、网站诊断与 Cloudflare 加速`,
+    },
     integrated: {
-      label: `综合总览`,
-      title: `诊断中心 · 综合总览`,
-      subtitle: `一次采集本地网络、DNS、端口、服务链路与代理路径`,
+      label: `网站检查`,
+      title: `指定网站检查`,
+      subtitle: `一次完成 DNS、端口、服务、链路与连接路径检查`,
+    },
+    "network-overview": {
+      label: `整体检查`,
+      title: `整体网速检查`,
+      subtitle: `组合检查本机网络环境与常用站点的真实访问质量`,
     },
     diagnosis: {
       label: `链路证据`,
-      title: `诊断中心 · 链路证据`,
+      title: `指定网站检查`,
       subtitle: `HTTP、TLS、Cloudflare 与 Traceroute`,
     },
     "dns-diagnosis": {
       label: `DNS 分析`,
-      title: `诊断中心 · DNS 分析`,
+      title: `指定网站检查`,
       subtitle: `系统 DNS、公共 UDP 与 DoH 解析证据对照`,
     },
     "port-test": {
       label: `端口协议`,
-      title: `诊断中心 · 端口协议`,
+      title: `指定网站检查`,
       subtitle: `指定端口的 TCP、TLS 与应用协议验证`,
     },
     "network-baseline": {
-      label: `本地环境`,
-      title: `诊断中心 · 本地环境`,
-      subtitle: `接口、默认路由、DNS、出口与代理环境`,
+      label: `网络基线`,
+      title: `整体网速检查`,
+      subtitle: `先检查接口、默认路由、DNS、出口与代理环境`,
     },
     "governance-center": {
       label: `治理中心`,
-      title: `优化治理 · 任务中心`,
+      title: `治理任务`,
       subtitle: `从诊断结论到治理、复测与回滚的统一工作流`,
     },
     stability: {
-      label: `单目标监测`,
-      title: `网络监测 · 单目标`,
+      label: `持续观察`,
+      title: `指定网站检查`,
       subtitle: `持续观察延迟、失败率、抖动和路径变化`,
     },
     "site-patrol": {
       label: `多站点巡检`,
-      title: `网络监测 · 多站点`,
+      title: `整体网速检查`,
       subtitle: `批量验证常用网站的可用性与访问质量`,
     },
     "path-compare": {
@@ -11634,25 +11753,25 @@ const moduleGroups = {
       subtitle: `系统代理、强制直连与手动代理 A/B 验证`,
     },
     "cdn-optimize": {
-      label: `CF IP 优选`,
-      title: `优化治理 · CF IP 优选`,
+      label: `网站加速`,
+      title: `Cloudflare 网站加速`,
       subtitle: `网段发现、延迟丢包筛选与下载测速`,
     },
     history: {
       label: `检测记录`,
-      title: `历史报告 · 检测记录`,
+      title: `历史报告`,
       subtitle: `本地保存的诊断结果与治理前后对比`,
     },
     "history-trends": {
       label: `趋势分析`,
-      title: `历史报告 · 趋势分析`,
+      title: `历史报告`,
       subtitle: `观察同一目标的长期性能变化与治理效果`,
     },
   },
   moduleSubnav = document.querySelector(`#module-subnav`),
   modulePageTitle = document.querySelector(`#module-page-title`),
   modulePageSubtitle = document.querySelector(`#module-page-subtitle`);
-let activeModuleGroup = ``;
+let activeModuleGroup = null;
 var O = null,
   k = null,
   ar = null,
@@ -11729,16 +11848,19 @@ var O = null,
   normaliseTargetField(_n, pathCompareScheme),
   normaliseTargetField(integratedTarget, integratedScheme),
   initialiseStyledSelects(),
-  R(`integrated`),
+  R(`scenario-hub`),
   syncLanguageToggle(),
-  startI18n(document.body),
-  _o());
-loadCDNProxyCompatibility();
-loadCFAccelerationStatus();
-loadUpdateState();
-window.setInterval(() => {
-  if (cdnAccelerationStatus?.active && !cdnAccelerationBusy) loadCFAccelerationStatus(true);
-}, 3000);
+  startI18n(document.body));
+const wailsBridgeAvailable = Boolean(window.go?.main?.App);
+if (wailsBridgeAvailable) {
+  _o();
+  loadCDNProxyCompatibility();
+  loadCFAccelerationStatus();
+  loadUpdateState();
+  window.setInterval(() => {
+    if (cdnAccelerationStatus?.active && !cdnAccelerationBusy) loadCFAccelerationStatus(true);
+  }, 3000);
+}
 var Or = [
   [`解析目标地址`, `正在采集 DNS 解析结果与解析耗时`],
   [`建立网络路径`, `正在验证直连或代理出口的可达性`],
@@ -11746,7 +11868,9 @@ var Or = [
   [`追踪网络路由`, `正在探测逐跳路径，最长等待 20 秒`],
 ];
 (integratedForm.addEventListener(`submit`, handleIntegratedSubmit),
+  networkOverviewForm.addEventListener(`submit`, handleNetworkOverviewSubmit),
   integratedCopyButton.addEventListener(`click`, copyIntegratedReport),
+  integratedMonitorButton.addEventListener(`click`, openIntegratedMonitoring),
   governanceCenter.addEventListener(`click`, handleGovernanceAction),
   integratedTarget.addEventListener(`input`, clearIntegratedTargetError),
   integratedTarget.addEventListener(`blur`, () => normaliseTargetField(integratedTarget, integratedScheme)),
@@ -11761,8 +11885,9 @@ var Or = [
   Ct.addEventListener(`submit`, Ri),
   kt.addEventListener(`click`, Xi),
   At.addEventListener(`change`, () => {
-    (updatePatrolProxyVisibility(), ts(At.value));
+    (updatePatrolProxyVisibility(), ts(At.value), updatePatrolPresetSummary());
   }),
+  Et.addEventListener(`change`, updatePatrolPresetSummary),
   patrolProxyInput.addEventListener(`input`, clearPatrolProxyError),
   patrolTargetToggle.addEventListener(`click`, () => {
     (patrolTargetsExpanded = !patrolTargetsExpanded),
@@ -11851,6 +11976,9 @@ var Or = [
   }),
   document.querySelectorAll(`[data-module-group]`).forEach((e) => {
     e.addEventListener(`click`, () => R(moduleGroups[e.dataset.moduleGroup]?.[0]));
+  }),
+  document.querySelectorAll(`[data-open-module]`).forEach((button) => {
+    button.addEventListener(`click`, () => R(button.dataset.openModule));
   }));
 trendSeries.addEventListener(`change`, () => renderHistoryTrends(!0));
 trendMetric.addEventListener(`change`, () => renderHistoryTrends());
@@ -12044,19 +12172,33 @@ function formatUpdateBytes(value) {
 }
 
 function getModuleGroup(module) {
+  if ([`diagnosis`, `dns-diagnosis`, `port-test`, `stability`, `path-compare`].includes(module))
+    return `site`;
+  if (module === `scenario-hub`) return ``;
   return (
     Object.entries(moduleGroups).find(([, modules]) => modules.includes(module))?.[0] ||
-    `diagnosis`
+    `site`
   );
 }
-function renderModuleSubnav(group) {
+function renderModuleSubnav(group, activeModule) {
   activeModuleGroup = group;
-  moduleSubnav.innerHTML = (moduleGroups[group] || moduleGroups.diagnosis)
-    .map((module) => {
-      let meta = moduleMeta[module];
-      return `<button class="module-subnav-item" type="button" data-module="${module}" aria-selected="false">${meta.label}</button>`;
-    })
-    .join(``);
+  const modules = moduleGroups[group] || [];
+  const networkDetail = group === `network` && activeModule !== `network-overview`;
+  const hidden = modules.length === 0 || (group === `network` && !networkDetail);
+  moduleSubnav.hidden = hidden;
+  moduleSubnav.classList.toggle(`detail-context`, networkDetail);
+  moduleSubnav.setAttribute(`aria-label`, networkDetail ? `整体检查详情` : `模块视图`);
+  document.querySelector(`.app-frame`).classList.toggle(`subnav-hidden`, hidden);
+  moduleSubnav.innerHTML = networkDetail
+    ? `<button class="module-subnav-back" type="button" data-module="network-overview"><span aria-hidden="true">‹</span>返回整体检查</button>
+       <span class="module-subnav-separator" aria-hidden="true">/</span>
+       <strong class="module-subnav-current">${moduleMeta[activeModule].label}详情</strong>`
+    : modules
+        .map((module) => {
+          let meta = moduleMeta[module];
+          return `<button class="module-subnav-item" type="button" data-module="${module}" aria-selected="false">${meta.label}</button>`;
+        })
+        .join(``);
   moduleSubnav.querySelectorAll(`[data-module]`).forEach((button) => {
     button.addEventListener(`click`, () => R(button.dataset.module));
   });
@@ -12076,10 +12218,11 @@ function syncRoutePanel(module) {
   resetTracePanel(showIntegrated ? `完成诊断后显示本次地域链路` : `等待完整诊断`);
 }
 function R(e) {
-  let t = Object.prototype.hasOwnProperty.call(moduleMeta, e) ? e : `integrated`,
+  let t = Object.prototype.hasOwnProperty.call(moduleMeta, e) ? e : `scenario-hub`,
     group = getModuleGroup(t),
     meta = moduleMeta[t];
-  activeModuleGroup !== group && renderModuleSubnav(group);
+  document.querySelector(`.app-frame`).classList.toggle(`scenario-home`, t === `scenario-hub`);
+  renderModuleSubnav(group, t);
   (document.querySelectorAll(`[data-module-view]`).forEach((e) => {
     e.hidden = e.dataset.moduleView !== t;
   }),
@@ -12099,6 +12242,8 @@ function R(e) {
     t === `stability` && A.length && requestAnimationFrame(() => da(A)),
     t === `governance-center` && renderGovernanceCenter(),
     t === `history-trends` && renderHistoryTrends());
+  const main = document.querySelector(`.app-frame > main`);
+  if (main) main.scrollTop = 0;
 }
 
 function governanceRouteSummary(route) {
@@ -12128,12 +12273,12 @@ function renderGovernanceCenter() {
   const model = governanceModel;
   governanceHero.dataset.state = model.health;
   governanceStateLabel.textContent = model.state === `idle`
-    ? `WAITING FOR BASELINE`
+    ? `等待基线`
     : model.health === `critical`
-      ? `ACTION REQUIRED`
+      ? `需要处理`
       : model.health === `warning`
-        ? `PLAN READY`
-        : `BASELINE HEALTHY`;
+        ? `方案就绪`
+        : `基线正常`;
   governanceTitle.textContent = model.title;
   governanceTarget.textContent = model.target
     ? `${J(model.target)} · ${model.attentionCount || 0} 项需要关注`
@@ -12172,7 +12317,7 @@ function renderGovernanceCenter() {
       : recovery.message || `请先恢复原系统代理设置`;
   }
 
-  governanceTaskCount.textContent = `${model.tasks.length} TASK${model.tasks.length === 1 ? `` : `S`}`;
+  governanceTaskCount.textContent = `${model.tasks.length} 项`;
   governanceTaskList.innerHTML = model.tasks.length
     ? model.tasks.map((task, index) => {
         const directRetest = task.action === `retest_recommended_route`;
@@ -12641,6 +12786,13 @@ async function copyIntegratedReport() {
     console.error(error);
     Q(`综合诊断报告复制失败`);
   }
+}
+
+function openIntegratedMonitoring() {
+  const target = integratedResult?.target_url || targetURLFromField(integratedTarget, integratedScheme);
+  setTargetField(dt, stabilityScheme, target);
+  R(`stability`);
+  dt.focus();
 }
 
 async function kr(e) {
@@ -13873,6 +14025,8 @@ async function yi(e) {
     if (e.status === `cancelled`) {
       ((cn.dataset.state = `idle`),
         (ln.textContent = `检测已停止`),
+        (baselineSummary.textContent = `本次检测未完成，请重新检测。`),
+        (baselineStatusCounts.hidden = !0),
         (un.textContent = `CANCELLED`),
         Q(`网络基线检测已停止`));
       return;
@@ -13884,6 +14038,8 @@ async function yi(e) {
     (console.error(e),
       (cn.dataset.state = `critical`),
       (ln.textContent = `网络基线检测失败`),
+      (baselineSummary.textContent = `未能获得完整结果，请检查网络后重新检测。`),
+      (baselineStatusCounts.hidden = !0),
       (un.textContent = `FAILED`),
       Q(`网络基线检测执行失败`));
   } finally {
@@ -13897,6 +14053,8 @@ async function yi(e) {
 function bi() {
   ((cn.dataset.state = `running`),
     (ln.textContent = `正在采集本地网络证据`),
+    (baselineSummary.textContent = `正在检查本机接口、DNS、公网出口和代理环境。`),
+    (baselineStatusCounts.hidden = !0),
     (un.textContent = `RUNNING`),
     (sn.disabled = !0),
     (C.querySelector(`.button-icon`).textContent = `■`),
@@ -13904,6 +14062,7 @@ function bi() {
     (hn.disabled = !0),
     [...dn.children].forEach((e) => {
       ((e.className = `running`),
+        (e.querySelector(`em`).textContent = `检测中`),
         (e.querySelector(`strong`).textContent = `检测中`),
         (e.querySelector(`p`).textContent = `--`));
     }),
@@ -13918,19 +14077,32 @@ function xi(e) {
     n = e.status !== `completed` || t.some((e) => e.status === `critical`),
     r = t.some((e) => e.status === `warning`),
     i = n ? `critical` : r ? `warning` : `healthy`;
+  const healthyCount = t.filter((item) => item.status === `healthy`).length,
+    warningCount = t.filter((item) => item.status === `warning`).length,
+    criticalCount = t.filter((item) => item.status === `critical`).length,
+    issues = t.filter((item) => item.status === `warning` || item.status === `critical`),
+    statusLabel = { healthy: `正常`, warning: `需关注`, critical: `异常`, idle: `未获取` };
   ((cn.dataset.state = i),
     (ln.textContent =
       e.status === `timeout`
-        ? `网络基线检测超时`
-        : n
-          ? `发现网络故障`
-          : r
-            ? `基线存在关注项`
-            : `本地网络基线正常`),
+        ? `检测未完整完成`
+        : criticalCount
+          ? `发现 ${criticalCount} 项异常${warningCount ? `、${warningCount} 项需关注` : ``}`
+          : warningCount
+            ? `发现 ${warningCount} 项需要关注`
+            : `${healthyCount || 4} 项检查均正常`),
+    (baselineSummary.textContent = issues.length
+      ? `问题集中在：${issues.map((item) => item.title).join(`、`)}。`
+      : `本机接口、DNS、公网出口和代理环境均未发现明显异常。`),
+    (baselineHealthyCount.textContent = String(healthyCount)),
+    (baselineWarningCount.textContent = String(warningCount)),
+    (baselineCriticalCount.textContent = String(criticalCount)),
+    (baselineStatusCounts.hidden = !1),
     (un.textContent = `${Y(e.duration_ms)} · ${e.target_host || ``}`),
     [...dn.children].forEach((e) => {
       let n = t.find((t) => t.layer === e.dataset.layer);
       ((e.className = n?.status || `idle`),
+        (e.querySelector(`em`).textContent = statusLabel[n?.status] || `未获取`),
         (e.querySelector(`strong`).textContent = n?.title || `未获取`),
         (e.querySelector(`p`).textContent = n?.detail || `--`));
     }),
@@ -14298,6 +14470,169 @@ async function Ii() {
       (console.error(e), Q(`路径对照报告复制失败`));
     }
 }
+
+function setNetworkOverviewStage(stage, state, label) {
+  const item = networkOverviewStages.find((entry) => entry.dataset.networkStage === stage);
+  if (!item) return;
+  item.className = state;
+  item.querySelector(`em`).textContent = label;
+}
+
+async function handleNetworkOverviewSubmit(event) {
+  event.preventDefault();
+  if (networkOverviewRunning) {
+    networkOverviewCancelled = true;
+    networkOverviewButton.querySelector(`span:last-child`).textContent = `正在停止…`;
+    const activeTask = dr || lr;
+    if (activeTask) {
+      try {
+        await V(activeTask);
+      } catch (error) {
+        console.error(error);
+        Q(`停止整体检查失败`);
+      }
+    }
+    return;
+  }
+
+  const selectedTargets = j.filter((target) => target.selected && target.url);
+  if (selectedTargets.length === 0) {
+    Q(`请至少选择一个常用站点`);
+    return;
+  }
+  const reference = selectedTargets
+    .map((target) => {
+      try {
+        const hostname = new URL(Uo(target.url)).hostname;
+        return hostname && !/^[\d.]+$/.test(hostname) && !hostname.includes(`:`) ? hostname : ``;
+      } catch {
+        return ``;
+      }
+    })
+    .find(Boolean);
+  if (!reference) {
+    Q(`已选站点中没有可用于 DNS 基线的域名`);
+    return;
+  }
+
+  networkOverviewRunning = true;
+  networkOverviewCancelled = false;
+  networkOverviewResult.hidden = true;
+  networkOverviewOutput.dataset.state = `running`;
+  networkOverviewStatus.textContent = `正在采集网络基线`;
+  networkOverviewDetail.textContent = `先确认本机环境，再检查常用站点`;
+  networkOverviewProgress.textContent = `0 / 2`;
+  networkOverviewButton.querySelector(`.button-icon`).textContent = `■`;
+  networkOverviewButton.querySelector(`span:last-child`).textContent = `停止检查`;
+  setNetworkOverviewStage(`baseline`, `running`, `进行中`);
+  setNetworkOverviewStage(`patrol`, ``, `等待`);
+  sn.value = reference;
+
+  try {
+    await yi({ preventDefault() {} });
+    setNetworkOverviewStage(`baseline`, _r ? `healthy` : `warning`, _r ? `完成` : `未完成`);
+    networkOverviewProgress.textContent = `1 / 2`;
+    if (networkOverviewCancelled) return;
+
+    networkOverviewStatus.textContent = `正在巡检常用站点`;
+    setNetworkOverviewStage(`patrol`, `running`, `进行中`);
+    await Ri({ preventDefault() {} });
+    if (networkOverviewCancelled) return;
+    setNetworkOverviewStage(`patrol`, gr ? `healthy` : `warning`, gr ? `完成` : `未完成`);
+    networkOverviewProgress.textContent = `2 / 2`;
+    renderNetworkOverviewResult();
+  } finally {
+    if (networkOverviewCancelled) {
+      networkOverviewOutput.dataset.state = `idle`;
+      networkOverviewStatus.textContent = `整体检查已停止`;
+      networkOverviewDetail.textContent = `已完成的专项结果仍保存在对应页面`;
+    }
+    networkOverviewRunning = false;
+    networkOverviewButton.querySelector(`.button-icon`).textContent = `↻`;
+    networkOverviewButton.querySelector(`span:last-child`).textContent = `重新检查`;
+  }
+}
+
+function renderNetworkOverviewResult() {
+  const patrolResults = Array.isArray(gr?.results) ? gr.results : [];
+  const baselineFindings = Array.isArray(_r?.findings) ? _r.findings : [];
+  const baselineIssues = baselineFindings.filter((item) => item.status !== `healthy`);
+  const patrolIssues = patrolResults
+    .map((entry) => {
+      const result = entry?.result;
+      if (!result) return null;
+      const assessment = Gi(result);
+      if (assessment.level === `healthy`) return null;
+      const targetName = entry.target?.name || J(entry.target?.url || ``) || `未命名站点`;
+      const detail = !result.success
+        ? `${String(result.failed_stage || `连接`).toUpperCase()} 阶段未通过`
+        : [`HTTP ${Number(result.status_code) || `--`}`, `首字节 ${Y(result.ttfb_ms)}`, `总耗时 ${Y(result.total_ms)}`].join(` · `);
+      return {
+        status: assessment.level === `failed` ? `critical` : `warning`,
+        title: `${targetName}：${assessment.label}`,
+        detail,
+      };
+    })
+    .filter(Boolean);
+  const selectedCount = j.filter((target) => target.selected).length;
+  const successCount = Number(gr?.success_count) || patrolResults.filter((item) => item.result?.success).length;
+  const summary = summariseNetworkOverview({
+    baseline: _r,
+    patrol: gr,
+    baselineIssues,
+    patrolIssues,
+    selectedCount,
+    successCount,
+  });
+  const issueCount = summary.issues.length;
+  const visibleIssues = summary.issues.slice(0, 8);
+  const hiddenIssueCount = Math.max(0, issueCount - visibleIssues.length);
+  const patrolFinding = (gr?.findings || []).find((item) => item.level !== `good`);
+  const recommendations = [
+    ...(patrolFinding ? [{ title: patrolFinding.title, detail: patrolFinding.message }] : []),
+    ...((_r?.remediations || []).map((item) => ({ title: item.title, detail: item.detail }))),
+  ].filter((item, index, items) => item?.title && items.findIndex((candidate) => candidate.title === item.title) === index).slice(0, 4);
+  networkOverviewOutput.dataset.state = summary.level;
+  networkOverviewStatus.textContent = summary.headline;
+  networkOverviewDetail.textContent = summary.detail;
+  networkOverviewResult.innerHTML = `
+    <div class="network-overview-metrics">
+      <div><span>网络基线</span><strong>${_r ? $(_r.status === `completed` ? `已完成` : _r.status || `部分完成`) : `未完成`}</strong></div>
+      <div><span>巡检站点</span><strong>${successCount} / ${selectedCount}</strong></div>
+      <div><span>需要关注</span><strong>${issueCount} 项</strong></div>
+    </div>
+    <div class="network-overview-summary-grid">
+      <section class="network-overview-findings">
+        <div class="network-overview-section-heading"><span>检查结果</span><strong>${issueCount ? `${issueCount} 项需要关注` : `未发现异常`}</strong></div>
+        <div class="network-overview-finding-list">
+          ${visibleIssues.length
+            ? visibleIssues.map((item) => `<article data-level="${$(item.status || `warning`)}"><i></i><div><strong>${$(item.title || `需要关注`)}</strong><p>${$(item.detail || ``)}</p></div></article>`).join(``)
+            : `<article data-level="healthy"><i></i><div><strong>当前网络状态正常</strong><p>本地网络基线和常用站点访问均未发现明显异常。</p></div></article>`}
+          ${hiddenIssueCount ? `<p class="network-overview-more">另有 ${hiddenIssueCount} 项站点异常，可在详细检测数据中查看。</p>` : ``}
+        </div>
+      </section>
+      <section class="network-overview-guidance">
+        <div class="network-overview-section-heading"><span>建议操作</span><strong>${recommendations.length ? `按顺序处理` : `无需处理`}</strong></div>
+        <div class="network-overview-guidance-list">
+          ${recommendations.length
+            ? recommendations.map((item, index) => `<article><span>${String(index + 1).padStart(2, `0`)}</span><div><strong>${$(item.title)}</strong><p>${$(item.detail || ``)}</p></div></article>`).join(``)
+            : `<article class="healthy"><span>✓</span><div><strong>保持当前设置</strong><p>后续出现访问异常时再重新检查即可。</p></div></article>`}
+        </div>
+      </section>
+    </div>
+    <details class="network-overview-details">
+      <summary><span><strong>详细检测数据</strong><small>网络基线与站点证据</small></span></summary>
+      <div class="network-overview-actions">
+        <button class="secondary-button" type="button" data-network-open="network-baseline">查看网络基线</button>
+        <button class="secondary-button" type="button" data-network-open="site-patrol">查看站点证据</button>
+      </div>
+    </details>`;
+  networkOverviewResult.hidden = false;
+  networkOverviewResult.querySelectorAll(`[data-network-open]`).forEach((button) => {
+    button.addEventListener(`click`, () => R(button.dataset.networkOpen));
+  });
+}
+
 function Li(e) {
   return [
     `ATNetool 路径对照报告`,
@@ -14506,6 +14841,18 @@ function Ji(e) {
 }
 function Yi() {
   Tt.textContent = `${j.filter((e) => e.selected).length} / ${j.length} SELECTED`;
+  updatePatrolPresetSummary();
+}
+function updatePatrolPresetSummary() {
+  const selected = j.filter((target) => target.selected).length;
+  networkOverviewSelectionSummary.textContent = `${selected} 个站点`;
+  patrolSelectionSummary.textContent = `${selected} 个站点`;
+  patrolConcurrencySummary.textContent = `${Et.value || 4} 路并发`;
+  patrolConnectionSummary.textContent = {
+    system: `自动连接策略`,
+    direct: `绕过代理`,
+    manual: `手动代理`,
+  }[At.value] || `自动连接策略`;
 }
 function Xi() {
   let e;

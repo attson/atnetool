@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATNetool 场景先行交互原型</title>
+  <link rel="icon" href="appicon.svg">
+  <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="brand" id="brand-home" type="button" aria-label="返回场景首页">
+        <img src="appicon.svg" alt="">
+        <span><strong>ATNetool</strong><small>网络诊断与治理</small></span>
+      </button>
+      <div class="page-context">
+        <strong id="page-title">选择任务场景</strong>
+        <span id="page-subtitle">从要完成的事情开始，工具能力按需出现</span>
+      </div>
+      <div class="top-actions">
+        <span class="engine-state"><i></i>本地引擎就绪</span>
+        <button class="version-button" id="version-button" type="button" title="检查软件更新"><small>VERSION</small><strong>0.9.4</strong></button>
+        <button class="icon-button" id="language-button" type="button" title="切换语言">EN</button>
+        <button class="icon-button" id="theme-button" type="button" title="切换深色主题" aria-label="切换深色主题">◐</button>
+      </div>
+    </header>
+
+    <section class="update-banner" id="update-banner" hidden aria-live="polite">
+      <i></i>
+      <div><strong id="update-title">发现新版本 0.9.5</strong><span id="update-detail">修复代理兼容问题并更新 Cloudflare 网段</span></div>
+      <div class="update-progress" id="update-progress" hidden><span id="update-progress-bar"></span></div>
+      <button class="button quiet" id="update-later" type="button">稍后</button>
+      <button class="button primary compact" id="update-action" type="button">下载更新</button>
+    </section>
+
+    <div class="app-body">
+      <aside class="scene-sidebar">
+        <div class="sidebar-heading"><span>任务场景</span><small>SCENARIOS</small></div>
+        <nav class="scene-nav" aria-label="任务场景">
+          <button type="button" data-open-scene="network"><b>01</b><span><strong>整体网速检查</strong><small>环境与常用站点</small></span></button>
+          <button type="button" data-open-scene="site"><b>02</b><span><strong>指定网站检查</strong><small>诊断与持续观察</small></span></button>
+          <button type="button" data-open-scene="cloudflare"><b>03</b><span><strong>Cloudflare 加速</strong><small>优选、应用与恢复</small></span></button>
+        </nav>
+        <div class="sidebar-divider"></div>
+        <nav class="global-nav" aria-label="全局功能">
+          <button type="button" data-open-drawer="governance"><span>✓</span><strong>治理任务</strong><em id="governance-count">2</em></button>
+          <button type="button" data-open-drawer="history"><span>▤</span><strong>历史报告</strong><em id="history-count">4</em></button>
+        </nav>
+        <div class="privacy-note"><i></i><span><strong>结果仅保存在本机</strong><small>导出前自动遮盖敏感字段</small></span></div>
+      </aside>
+
+      <main class="workspace">
+        <section class="scene-hub" id="scene-hub">
+          <header class="hub-header">
+            <span>开始一项任务</span>
+            <h1>这次想检查什么？</h1>
+            <p>先选场景。诊断、监控、对照、治理和报告能力会在任务中按需展开。</p>
+          </header>
+          <div class="scene-grid">
+            <button class="scene-card" type="button" data-open-scene="network">
+              <div class="scene-card-top"><b>NET</b><span>约 1-3 分钟</span></div>
+              <h2>整体网速检查</h2>
+              <p>检查本机网络环境和常用站点的真实访问质量，定位 DNS、出口、代理或多站点共性问题。</p>
+              <ul><li>网络基线</li><li>多站点巡检</li><li>治理建议</li></ul>
+              <footer><span>开始检查</span><i>›</i></footer>
+            </button>
+            <button class="scene-card" type="button" data-open-scene="site">
+              <div class="scene-card-top"><b>WEB</b><span>约 20 秒起</span></div>
+              <h2>指定网站检查</h2>
+              <p>输入一个网站，自动检查 DNS、端口、TLS、HTTP、路由与不同连接路径，异常再按需深挖。</p>
+              <ul><li>一键检查</li><li>5 类能力</li><li>持续观察</li></ul>
+              <footer><span>输入网站</span><i>›</i></footer>
+            </button>
+            <button class="scene-card" type="button" data-open-scene="cloudflare">
+              <div class="scene-card-top"><b>CF</b><span>约 2-10 分钟</span></div>
+              <h2>Cloudflare 网站加速</h2>
+              <p>按真实域名验证候选节点，比较当前 DNS 与推荐 IP，并提供可回滚的应用方式。</p>
+              <ul><li>IP 优选</li><li>下载测速</li><li>应用与恢复</li></ul>
+              <footer><span>开始优选</span><i>›</i></footer>
+            </button>
+          </div>
+          <div class="capability-strip">
+            <div><span>11</span><strong>现有能力已归入场景</strong></div>
+            <p>整体网速检查基于网络基线与真实站点访问质量，不等同于运营商签约带宽测速。</p>
+            <button class="text-button" type="button" data-open-drawer="history">查看最近记录</button>
+          </div>
+        </section>
+
+        <section class="scene-workspace" id="scene-workspace" hidden>
+          <button class="back-button" id="back-button" type="button">‹ 返回场景</button>
+          <header class="scene-header">
+            <div><span id="scene-kicker">场景 01</span><h1 id="scene-title">整体网速检查</h1><p id="scene-description"></p></div>
+            <div class="scene-header-actions"><button class="button secondary compact" id="scene-history" type="button">查看历史记录</button></div>
+          </header>
+          <nav class="tool-tabs" id="tool-tabs" aria-label="场景工具"></nav>
+
+          <div class="task-layout">
+            <section class="task-panel" aria-labelledby="tool-title">
+              <header><div><span id="tool-kicker">主任务</span><h2 id="tool-title"></h2><p id="tool-description"></p></div><button class="info-button" id="tool-info" type="button" aria-label="工具说明">i</button></header>
+              <form id="tool-form" novalidate></form>
+              <footer class="task-actions"><span id="task-estimate"></span><div><button class="button secondary" id="reset-button" type="button">恢复默认</button><button class="button primary" id="run-button" type="submit" form="tool-form">开始检查</button></div></footer>
+            </section>
+            <aside class="task-summary">
+              <header><span>本次任务</span><strong id="summary-title">将执行的检查</strong></header>
+              <div class="summary-steps" id="summary-steps"></div>
+              <div class="summary-boundary"><strong>数据与边界</strong><p id="summary-boundary"></p></div>
+            </aside>
+          </div>
+
+          <section class="execution-panel" id="execution-panel" hidden aria-live="polite">
+            <header><div><span>任务进度</span><strong id="execution-title">正在检查</strong><p id="execution-detail"></p></div><button class="button danger compact" id="stop-button" type="button">停止任务</button></header>
+            <div class="progress-track"><i id="progress-bar"></i></div>
+            <div class="execution-stages" id="execution-stages"></div>
+          </section>
+
+          <section class="result-panel" id="result-panel" hidden>
+            <header class="result-header"><div><span>任务结果</span><h2 id="result-title">检查完成</h2><p id="result-description"></p></div><span class="result-status" id="result-status">已完成</span></header>
+            <div id="result-content"></div>
+            <footer class="result-actions" id="result-actions"></footer>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="drawer-layer" id="drawer-layer" hidden>
+    <button class="drawer-backdrop" id="drawer-backdrop" type="button" aria-label="关闭侧栏"></button>
+    <aside class="drawer" id="history-drawer" hidden aria-labelledby="history-title">
+      <header><div><span>LOCAL RECORDS</span><h2 id="history-title">历史报告</h2></div><button class="close-button" type="button" data-close-drawer aria-label="关闭">×</button></header>
+      <nav class="drawer-tabs" id="history-tabs"><button class="active" type="button" data-history-tab="records">检测记录</button><button type="button" data-history-tab="trends">趋势分析</button><button type="button" data-history-tab="import">导入报告</button></nav>
+      <div class="drawer-body history-view" data-history-view="records">
+        <div class="drawer-toolbar"><span>选择同类型记录进行前后对比</span><button class="button secondary compact" id="compare-history" type="button" disabled>对比选中项</button></div>
+        <div class="history-list" id="history-list"></div>
+        <div class="comparison-box" id="history-comparison" hidden></div>
+        <button class="text-button danger-text" id="clear-history" type="button">清空本地历史</button>
+      </div>
+      <div class="drawer-body history-view" data-history-view="trends" hidden>
+        <div class="trend-controls"><label>分析序列<select id="trend-series"><option>指定网站 · www.cloudflare.com</option><option>Cloudflare 优选 · example.com</option></select></label><label>趋势指标<select id="trend-metric"><option>总耗时 P50</option><option>TTFB P50</option><option>成功率</option></select></label><label>时间范围<select><option>最近 7 天</option><option selected>最近 30 天</option><option>全部时间</option></select></label></div>
+        <div class="trend-summary"><div><span>记录</span><strong>6 次</strong></div><div><span>平均值</span><strong>428 ms</strong></div><div><span>变化</span><strong class="positive">-18.4%</strong></div></div>
+        <div class="trend-chart" aria-label="历史性能趋势"><i style="height:42%"></i><i style="height:58%"></i><i style="height:47%"></i><i style="height:64%"></i><i style="height:51%"></i><i style="height:74%"></i></div>
+        <div class="trend-finding"><strong>访问性能持续改善</strong><p>最近三次检测的总耗时均低于 30 天平均值，连接路径未发生变化。</p></div>
+      </div>
+      <div class="drawer-body history-view" data-history-view="import" hidden>
+        <div class="import-drop"><b>ZIP</b><strong>导入诊断报告包</strong><p>报告在本机解析，不上传到服务器。</p><button class="button secondary" id="import-report" type="button">选择报告</button></div>
+        <section class="import-preview" id="import-preview" hidden>
+          <header><div><span>IMPORTED · READ ONLY</span><strong>ATNetool-report-2026-11-06.zip</strong></div><button class="close-button" id="close-import" type="button">×</button></header>
+          <nav><button class="active" type="button" data-import-tab="overview">综合概览</button><button type="button" data-import-tab="evidence">模块证据</button><button type="button" data-import-tab="route">地域链路</button><button type="button" data-import-tab="raw">原始数据</button></nav>
+          <div id="import-content"></div>
+          <footer><button class="button secondary" id="compare-import" type="button">与本机记录对比</button><button class="button primary" id="save-import" type="button">保存到本地历史</button></footer>
+        </section>
+      </div>
+    </aside>
+
+    <aside class="drawer" id="governance-drawer" hidden aria-labelledby="governance-title">
+      <header><div><span>REMEDIATION WORKFLOW</span><h2 id="governance-title">治理任务</h2></div><button class="close-button" type="button" data-close-drawer aria-label="关闭">×</button></header>
+      <div class="drawer-body">
+        <div class="governance-state"><i></i><div><span>建议先处理 DNS 响应偏慢</span><strong>www.cloudflare.com</strong></div><button class="button secondary compact" type="button" data-governance-jump="site">查看诊断</button></div>
+        <div class="governance-flow"><div class="done"><b>1</b><span>采集证据</span></div><i></i><div class="active"><b>2</b><span>选择方案</span></div><i></i><div><b>3</b><span>执行治理</span></div><i></i><div><b>4</b><span>复测验证</span></div></div>
+        <section class="governance-section"><header><span>连接策略</span><strong>系统代理 → 强制直连</strong></header><div class="before-after"><div><span>当前路径</span><strong>系统代理</strong><small>642 ms</small></div><i>→</i><div><span>推荐路径</span><strong>强制直连</strong><small>398 ms</small></div></div><button class="button secondary" type="button" data-governance-jump="site-path">使用推荐路径复测</button></section>
+        <section class="governance-section"><header><span>治理效果</span><strong>等待复测</strong></header><div class="governance-metrics"><div><span>端到端耗时</span><strong>--</strong></div><div><span>TTFB</span><strong>--</strong></div><div><span>成功率</span><strong>--</strong></div></div></section>
+        <section class="recovery-banner" id="recovery-banner"><i></i><div><strong>Cloudflare IP 优选正在生效</strong><p>example.com · 104.18.7.12 · 已保存系统代理恢复点</p></div><button class="button danger compact" id="rollback-button" type="button">停止并恢复</button></section>
+        <section class="governance-section"><header><span>治理队列</span><strong>2 TASKS</strong></header><div class="task-queue"><article><b>01</b><div><strong>切换公共 DNS 后复测</strong><p>预计改善首次解析耗时</p></div><button type="button" data-governance-jump="site-dns">前往处理</button></article><article><b>02</b><div><strong>验证 Cloudflare 推荐 IP</strong><p>先观察多次排名稳定性</p></div><button type="button" data-governance-jump="cloudflare">前往处理</button></article></div></section>
+      </div>
+    </aside>
+  </div>
+
+  <div class="modal-layer" id="modal-layer" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <span id="modal-kicker">确认操作</span><h2 id="modal-title">确认操作</h2><p id="modal-message"></p>
+      <div class="modal-actions"><button class="button secondary" id="modal-cancel" type="button">取消</button><button class="button primary" id="modal-confirm" type="button">确认</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="prototype.js"></script>
+</body>
+</html>
