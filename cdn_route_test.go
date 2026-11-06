@@ -65,9 +65,11 @@ func TestBuildCDNPathEvidenceKeepsTunRouteExplicit(t *testing.T) {
 
 func TestApplyCDNRouteGovernanceDoesNotSuggestDirectConfigForProxyResult(t *testing.T) {
 	result := CDNOptimizeResult{
-		BestIP:         "104.16.1.20",
-		EffectiveRoute: cdnRouteProxy,
-		Governance:     []CDNGovernanceAdvice{{Action: "verify", Title: "先验证业务完整性"}},
+		BestIP:             "104.16.1.20",
+		EffectiveRoute:     cdnRouteProxy,
+		TargetValidated:    true,
+		TargetVerification: CDNTargetVerification{Verified: true},
+		Governance:         []CDNGovernanceAdvice{{Action: "verify", Title: "先验证业务完整性"}},
 	}
 	applyCDNRouteGovernance(&result)
 	if len(result.Governance) == 0 || result.Governance[0].Action != "gateway_apply" {
@@ -77,6 +79,21 @@ func TestApplyCDNRouteGovernanceDoesNotSuggestDirectConfigForProxyResult(t *test
 		if item.Action == "verify" {
 			t.Fatalf("direct governance leaked into proxy result: %+v", result.Governance)
 		}
+	}
+}
+
+func TestApplyCDNRouteGovernanceDoesNotAdvertiseBlockedGatewayAction(t *testing.T) {
+	result := CDNOptimizeResult{
+		BestIP:             "104.16.1.20",
+		EffectiveRoute:     cdnRouteProxy,
+		TargetVerification: CDNTargetVerification{Verified: true},
+		Governance: []CDNGovernanceAdvice{{
+			Action: "retest_http", Title: "切换 HTTPing 后重新优选",
+		}},
+	}
+	applyCDNRouteGovernance(&result)
+	if len(result.Governance) != 1 || result.Governance[0].Action != "retest_http" {
+		t.Fatalf("governance=%+v", result.Governance)
 	}
 }
 

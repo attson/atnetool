@@ -28,9 +28,9 @@ git push origin v0.1.0
 
 发布矩阵：
 
-- macOS arm64 / amd64：`.app.tar.gz`
+- macOS arm64 / amd64：`.app.tar.gz`（自动更新）与 `.dmg`（安装包）
 - Windows amd64：安装器 `.exe` 与自动更新 `.zip`
-- Linux arm64 / amd64：`.tar.gz`
+- Linux arm64 / amd64：`.tar.gz`（自动更新）与 `.deb`（安装包）
 
 CI 会把 tag 版本注入客户端和安装包元数据，无需在发布前手动修改源码版本。
 
