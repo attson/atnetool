@@ -6,6 +6,10 @@ import {
   unwrapRouteLongitudes,
 } from './imported-report-review.js';
 import { buildGovernanceCenterModel } from './governance-center.js';
+import {
+  getCFAccelerationBlockReason,
+  getCDNGovernanceBlockReason,
+} from './cdn-actions.js';
 
 (function () {
   let e = document.createElement(`link`).relList;
@@ -11899,10 +11903,9 @@ async function handleUpdateCheck() {
   renderUpdateState();
   try {
     appUpdateState = await checkForUpdates();
-    if (appUpdateState?.phase === `up_to_date`) {
-      Q(`当前已是最新版本`);
-      appUpdateInteractive = false;
-    }
+    // Keep the completed check visible until the user acknowledges it. A
+    // transient toast is easy to miss, especially when the check takes a
+    // moment or the pointer is away from the bottom of the window.
   } catch (error) {
     console.error(error);
     try {
@@ -11966,17 +11969,25 @@ function renderUpdateState() {
   const releaseVersion = state.release?.version || ``;
   const hiddenByChoice = releaseVersion && dismissedUpdateVersion === releaseVersion;
   const autoError = phase === `error` && !appUpdateInteractive;
-  const silentPhase = [`disabled`, `idle`, `up_to_date`].includes(phase) || (phase === `checking` && !appUpdateInteractive);
+  const silentPhase =
+    [`disabled`, `idle`].includes(phase) ||
+    (phase === `up_to_date` && !appUpdateInteractive) ||
+    (phase === `checking` && !appUpdateInteractive);
   updateBanner.hidden = Boolean(hiddenByChoice || autoError || silentPhase);
   updateBanner.dataset.state = phase;
   updateProgress.hidden = phase !== `downloading`;
   updateProgressBar.style.width = `${Math.max(0, Math.min(100, Number(state.progress) || 0))}%`;
-  updatePrimary.hidden = false;
+  updatePrimary.hidden = phase === `up_to_date`;
   updateSecondary.hidden = false;
   updatePrimary.disabled = appUpdateBusy || [`checking`, `downloading`, `verifying`, `applying`].includes(phase);
   updateSecondary.disabled = phase === `applying`;
 
   switch (phase) {
+    case `up_to_date`:
+      updateTitle.textContent = `当前已是最新版本`;
+      updateDetail.textContent = `当前版本 V${version} · 已完成检查`;
+      updateSecondary.textContent = `知道了`;
+      break;
     case `checking`:
       updateTitle.textContent = `正在检查更新`;
       updateDetail.textContent = `正在连接 GitHub Release`;
@@ -13276,15 +13287,20 @@ function ii(e) {
     (an.disabled = !e.best_ip),
     (rn.disabled = t.length === 0),
     (cdnExportButton.disabled = t.length === 0),
-    (cdnGovernanceExportButton.disabled = !canExportCDNGovernance(e)),
-    (cdnGovernanceExportButton.title = e.effective_route === `proxy`
-      ? `代理出口结果不能生成直连治理配置，请切换本机网络后重新测试`
-      : ``),
+    setCDNResultActionState(
+      cdnGovernanceExportButton,
+      Boolean(e.best_ip),
+      getCDNGovernanceBlockReason(e),
+    ),
     renderCFAccelerationStatus());
 }
 
-function canExportCDNGovernance(result) {
-  return Boolean(result?.best_ip && result?.target_validated && result?.effective_route !== `proxy`);
+function setCDNResultActionState(button, hasResult, blockedReason) {
+  const blocked = Boolean(hasResult && blockedReason);
+  button.disabled = !hasResult;
+  button.dataset.blocked = blocked ? `true` : `false`;
+  button.setAttribute(`aria-disabled`, String(blocked));
+  button.title = blockedReason || ``;
 }
 
 function resetCDNComparison() {
@@ -13596,10 +13612,6 @@ async function loadCFAccelerationStatus(silent = false) {
   }
 }
 
-function canApplyCFAcceleration() {
-  return Boolean(M?.best_ip && M?.target_validated && M?.target_verification?.verified);
-}
-
 function renderCFAccelerationStatus() {
   const status = cdnAccelerationStatus || { state: `inactive`, message: `未启用 CF IP 加速` };
   const active = Boolean(status.active);
@@ -13611,11 +13623,14 @@ function renderCFAccelerationStatus() {
     : status.recovered
       ? `已自动恢复原系统代理`
       : status.message || `未启用 CF IP 加速`;
+  const applyBlockedReason = getCFAccelerationBlockReason(M);
   cdnAccelerationDetail.textContent = active
     ? status.message || `CF 流量使用优选 IP，其他流量保持原出口`
     : state === `error` || state === `warning`
       ? status.message || `请检查系统代理设置`
-      : `应用后仅接管系统 HTTP / HTTPS 代理，可随时恢复原设置`;
+      : M?.best_ip && applyBlockedReason
+        ? applyBlockedReason
+        : `应用后仅接管系统 HTTP / HTTPS 代理，可随时恢复原设置`;
   cdnAccelerationMeta.hidden = !active;
   if (active) {
     cdnAccelerationRoute.textContent = status.effective_route === `proxy`
@@ -13626,7 +13641,10 @@ function renderCFAccelerationStatus() {
     cdnAccelerationEndpoint.textContent = status.gateway_url || `--`;
     cdnAccelerationEndpoint.title = status.gateway_url || ``;
   }
-  cdnAccelerationApply.disabled = cdnAccelerationBusy || !canApplyCFAcceleration();
+  cdnAccelerationApply.disabled = cdnAccelerationBusy || !M?.best_ip;
+  cdnAccelerationApply.dataset.blocked = M?.best_ip && applyBlockedReason ? `true` : `false`;
+  cdnAccelerationApply.setAttribute(`aria-disabled`, String(Boolean(M?.best_ip && applyBlockedReason)));
+  cdnAccelerationApply.title = applyBlockedReason;
   cdnAccelerationApply.textContent = active ? `更新优选` : `应用优选`;
   cdnAccelerationStop.hidden = !recoverable;
   cdnAccelerationStop.textContent = active ? `停止并恢复` : `重试恢复`;
@@ -13635,7 +13653,12 @@ function renderCFAccelerationStatus() {
 }
 
 async function handleCFAccelerationApply() {
-  if (!canApplyCFAcceleration() || cdnAccelerationBusy) return;
+  if (cdnAccelerationBusy) return;
+  const blockedReason = getCFAccelerationBlockReason(M);
+  if (blockedReason) {
+    Q(blockedReason);
+    return;
+  }
   cdnAccelerationBusy = true;
   cdnAccelerationStatus = {
     ...(cdnAccelerationStatus || {}),
@@ -13745,7 +13768,11 @@ async function exportCDNCSV() {
   }
 }
 async function exportCDNGovernance() {
-  if (!canExportCDNGovernance(M)) return;
+  const blockedReason = getCDNGovernanceBlockReason(M);
+  if (blockedReason) {
+    Q(blockedReason);
+    return;
+  }
   cdnGovernanceExportButton.disabled = true;
   try {
     const path = await exportCFGovernanceBundle(M);
@@ -13754,7 +13781,11 @@ async function exportCDNGovernance() {
     console.error(error);
     Q(error instanceof Error && error.message ? error.message : `配置包生成失败`);
   } finally {
-    cdnGovernanceExportButton.disabled = !canExportCDNGovernance(M);
+    setCDNResultActionState(
+      cdnGovernanceExportButton,
+      Boolean(M?.best_ip),
+      getCDNGovernanceBlockReason(M),
+    );
   }
 }
 function vi(e) {

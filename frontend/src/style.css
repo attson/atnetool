@@ -8605,6 +8605,11 @@ html[data-theme="light"] select {
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--cyan) 12%, transparent);
 }
 
+.version-button[data-state="up_to_date"] i {
+    background: var(--green);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
 .version-button[data-state="downloading"] i,
 .version-button[data-state="verifying"] i,
 .version-button[data-state="checking"] i {
@@ -8653,6 +8658,11 @@ html[data-theme="light"] select {
 }
 
 .update-banner[data-state="ready"] .update-signal {
+    background: var(--green);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+.update-banner[data-state="up_to_date"] .update-signal {
     background: var(--green);
     box-shadow: 0 0 0 5px color-mix(in srgb, var(--green) 12%, transparent);
 }
@@ -10524,9 +10534,10 @@ html[data-theme="light"] .trace-view-tab.active {
 }
 
 .field-label-row .info-tip::after {
-    right: 0;
-    left: auto;
+    right: auto;
+    left: 0;
     transform: translateY(-3px);
+    transform-origin: top left;
 }
 
 .field-label-row .info-tip:hover::after,
@@ -11273,6 +11284,20 @@ html[data-locale="en-US"] .patrol-header-meta .styled-select {
     border-radius: 10px;
     font-size: 11px;
     white-space: nowrap;
+}
+
+.cdn-acceleration-actions button[data-blocked="true"],
+.cdn-governance-export-button[data-blocked="true"] {
+    cursor: help;
+    border-color: color-mix(in srgb, var(--amber) 38%, var(--line));
+}
+
+.cdn-acceleration-actions button[data-blocked="true"]:hover,
+.cdn-governance-export-button[data-blocked="true"]:hover {
+    color: var(--amber);
+    border-color: var(--amber);
+    background: color-mix(in srgb, var(--amber) 9%, var(--surface-raised));
+    transform: translateY(-1px);
 }
 
 .cdn-actions {
