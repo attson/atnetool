@@ -25,20 +25,19 @@ const (
 
 func configureCDNRoute(options CDNOptimizeOptions, settings *cdnOptimizeSettings, result *CDNOptimizeResult) error {
 	requested := strings.ToLower(strings.TrimSpace(options.RouteMode))
-	if requested == "" {
-		requested = cdnRouteAuto
+	if requested == "" || requested == cdnRouteAuto {
+		requested = cdnRouteDirect
 	}
-	if requested != cdnRouteAuto && requested != cdnRouteDirect && requested != cdnRouteProxy {
+	if requested != cdnRouteDirect && requested != cdnRouteProxy {
 		return fmt.Errorf("不支持的候选测试出口")
 	}
 	result.RequestedRoute = requested
 
 	rawProxy := strings.TrimSpace(options.UpstreamProxyURL)
-	if rawProxy == "" {
+	if requested == cdnRouteProxy && rawProxy == "" {
 		rawProxy = result.ProxyCompatibility.SuggestedProxyURL
 	}
-	useProxy := requested == cdnRouteProxy || (requested == cdnRouteAuto && result.ProxyCompatibility.RecommendedRoute == cdnRouteProxy)
-	if useProxy {
+	if requested == cdnRouteProxy {
 		if rawProxy == "" {
 			return fmt.Errorf("没有检测到可用于兼容优选的 HTTP / SOCKS 代理")
 		}
