@@ -110,14 +110,14 @@ func buildProxyCompatibility(systemProxy string, environment NetworkEnvironment,
 	switch {
 	case hasProxy && result.TunnelDetected:
 		result.Mode = "hybrid"
-		result.RecommendedRoute = "proxy"
-		result.Coverage = "候选测试将通过现有代理出口执行；TUN 仍可能接管其他应用流量"
-		result.Message = "检测到本地代理与 TUN，可按现有代理出口进行兼容优选"
+		result.RecommendedRoute = "direct"
+		result.Coverage = "候选测试默认绕过显式代理；TUN 仍可能接管测试流量"
+		result.Message = "检测到本地代理与 TUN；优选将使用本机出口，但无法绕过系统级 TUN"
 	case hasProxy:
 		result.Mode = "system_proxy"
-		result.RecommendedRoute = "proxy"
-		result.Coverage = "候选测试将通过现有 HTTP / SOCKS 代理出口执行"
-		result.Message = "检测到可串联的本地代理"
+		result.RecommendedRoute = "direct"
+		result.Coverage = "候选测试默认绕过现有 HTTP / SOCKS 代理"
+		result.Message = "检测到本地代理；Cloudflare 优选将使用本机网络出口"
 	case result.TunnelDetected:
 		result.Mode = "tun"
 		result.RecommendedRoute = "direct"

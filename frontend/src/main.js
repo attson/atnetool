@@ -11,6 +11,7 @@ import {
   getCDNGovernanceBlockReason,
 } from './cdn-actions.js';
 import { summariseNetworkOverview } from './network-overview.js';
+import { buildIntegratedResultPresentation } from './integrated-result.js';
 
 (function () {
   let e = document.createElement(`link`).relList;
@@ -10098,31 +10099,27 @@ Ce.innerHTML = `
                     </div>
 
                     <div class="integrated-results" id="integrated-results" hidden>
-                        <div class="integrated-result-heading">
-                            <div>
-                                <span class="eyebrow">DIAGNOSIS RESULT</span>
-                                <h2>诊断结果</h2>
-                            </div>
-                            <span class="integrated-result-state" id="integrated-result-state">等待结果</span>
-                        </div>
-                        <div class="integrated-evidence" id="integrated-evidence"></div>
                         <div class="integrated-result-grid">
-                            <section>
-                                <div class="integrated-section-title"><span>FINDINGS</span><strong id="integrated-findings-title">分层结论</strong></div>
+                            <section class="integrated-issues-section">
+                                <div class="integrated-section-title">
+                                    <span>NEEDS ATTENTION</span>
+                                    <strong id="integrated-findings-title">需要处理</strong>
+                                </div>
                                 <div id="integrated-findings"></div>
-                            </section>
-                            <section>
-                                <div class="integrated-section-title"><span>REMEDIATION ORDER</span><strong>治理顺序</strong></div>
-                                <div id="integrated-remediations"></div>
                             </section>
                         </div>
                         <div class="monitor-prompt">
                             <div><strong>需要确认问题是否偶发？</strong><p>持续观察会沿用本次网站和连接策略，不需要重新填写目标。</p></div>
                             <button class="secondary-button" id="integrated-monitor-button" type="button">持续观察</button>
                         </div>
-                        <details class="result-details">
-                            <summary><span><strong>详细证据</strong><small>地域链路、原始跳点与完整诊断报告</small></span><em>展开</em></summary>
+                        <details class="result-details integrated-full-results">
+                            <summary><span><strong>完整检测详情</strong><small id="integrated-details-summary">已通过项目、关键指标与原始证据</small></span><em>展开</em></summary>
                             <div class="result-details-body">
+                                <div class="integrated-evidence" id="integrated-evidence"></div>
+                                <section class="integrated-verified-section" id="integrated-verified-section">
+                                    <div class="integrated-details-heading"><strong>已验证项目</strong><span id="integrated-verified-count">0 项</span></div>
+                                    <div class="integrated-verified-grid" id="integrated-verified"></div>
+                                </section>
                                 <div class="integrated-route-host" id="integrated-route-host"></div>
                                 <button class="secondary-button integrated-copy" id="integrated-copy-button" type="button" disabled>
                                     <span aria-hidden="true">▣</span><span>复制综合诊断报告</span>
@@ -10713,7 +10710,7 @@ Ce.innerHTML = `
                         </div>
                     </div>
                     <span class="info-tip" tabindex="0" role="note" aria-label="Cloudflare IP 优选说明"
-                          data-tooltip="按 CloudflareSpeedTest 流程执行候选发现、延迟与丢包筛选、可选下载测速和结果排序；自动兼容当前代理环境。">i</span>
+                          data-tooltip="按 CloudflareSpeedTest 流程通过本机网络执行候选发现、延迟与丢包筛选、可选下载测速和结果排序。">i</span>
                 </div>
 
                 <form class="cdn-form" id="cdn-form" novalidate>
@@ -10732,8 +10729,8 @@ Ce.innerHTML = `
 
                     <div class="cdn-compatibility" id="cdn-compatibility" data-state="checking">
                         <i aria-hidden="true"></i>
-                        <div><strong id="cdn-compatibility-title">正在识别代理环境</strong><span id="cdn-compatibility-detail">自动选择与当前网络一致的测试出口</span></div>
-                        <button id="cdn-compatibility-refresh" type="button" aria-label="重新识别代理环境">↻</button>
+                        <div><strong id="cdn-compatibility-title">正在检查本机出口</strong><span id="cdn-compatibility-detail">优选默认绕过显式代理</span></div>
+                        <button id="cdn-compatibility-refresh" type="button" aria-label="重新检查本机出口">↻</button>
                     </div>
 
                     <details class="cdn-advanced">
@@ -10761,9 +10758,8 @@ Ce.innerHTML = `
                                 <label class="cdn-select-control">
                                     <span>测试出口</span>
                                     <select id="cdn-route-mode">
-                                        <option value="auto" selected>自动兼容</option>
-                                        <option value="direct">本机网络</option>
-                                        <option value="proxy">现有代理</option>
+                                        <option value="direct" selected>本机网络（默认）</option>
+                                        <option value="proxy">代理出口（专项）</option>
                                     </select>
                                 </label>
                             </div>
@@ -10780,7 +10776,7 @@ Ce.innerHTML = `
                             </div>
 
                             <div class="cdn-scope-strip">
-                                <div><span>测试出口</span><strong id="cdn-route-scope">自动兼容</strong><span id="cdn-route-scope-tip" class="info-tip" tabindex="0" role="note" aria-label="测试出口说明" data-tooltip="自动识别本地代理与 TUN，并使用与当前网络一致的出口测试候选 IP。">i</span></div>
+                                <div><span>测试出口</span><strong id="cdn-route-scope">本机网络</strong><span id="cdn-route-scope-tip" class="info-tip" tabindex="0" role="note" aria-label="测试出口说明" data-tooltip="绕过显式 HTTP / SOCKS 代理；如果系统存在 TUN，流量仍可能由 TUN 接管。">i</span></div>
                                 <div><span>验证范围</span><strong id="cdn-validation-scope">智能验证</strong><span class="info-tip" tabindex="0" role="note" aria-label="验证范围说明" data-tooltip="网络层排序后自动验证推荐 IP 的 Host、SNI、TLS、状态码与 CF-Ray。">i</span></div>
                             </div>
 
@@ -11653,11 +11649,13 @@ const integratedForm = document.querySelector(`#integrated-form`),
   integratedProgressBar = document.querySelector(`#integrated-progress-bar`),
   integratedStages = [...document.querySelectorAll(`[data-integrated-module]`)],
   integratedResults = document.querySelector(`#integrated-results`),
-  integratedResultState = document.querySelector(`#integrated-result-state`),
   integratedFindings = document.querySelector(`#integrated-findings`),
   integratedFindingsTitle = document.querySelector(`#integrated-findings-title`),
-  integratedRemediations = document.querySelector(`#integrated-remediations`),
   integratedEvidence = document.querySelector(`#integrated-evidence`),
+  integratedDetailsSummary = document.querySelector(`#integrated-details-summary`),
+  integratedVerifiedSection = document.querySelector(`#integrated-verified-section`),
+  integratedVerifiedCount = document.querySelector(`#integrated-verified-count`),
+  integratedVerified = document.querySelector(`#integrated-verified`),
   integratedRouteHost = document.querySelector(`#integrated-route-host`),
   integratedCopyButton = document.querySelector(`#integrated-copy-button`),
   integratedMonitorButton = document.querySelector(`#integrated-monitor-button`);
@@ -11871,6 +11869,7 @@ var Or = [
   networkOverviewForm.addEventListener(`submit`, handleNetworkOverviewSubmit),
   integratedCopyButton.addEventListener(`click`, copyIntegratedReport),
   integratedMonitorButton.addEventListener(`click`, openIntegratedMonitoring),
+  integratedFindings.addEventListener(`click`, handleIntegratedRemediation),
   governanceCenter.addEventListener(`click`, handleGovernanceAction),
   integratedTarget.addEventListener(`input`, clearIntegratedTargetError),
   integratedTarget.addEventListener(`blur`, () => normaliseTargetField(integratedTarget, integratedScheme)),
@@ -12559,7 +12558,8 @@ function updateIntegratedProgress(complete, total, label) {
 function integratedStageLevel(status) {
   if ([`failed`, `critical`, `timeout`, `rejected`].includes(status)) return `critical`;
   if ([`warning`, `partial`, `cancelled`].includes(status)) return `warning`;
-  if ([`completed`, `healthy`, `success`].includes(status)) return `healthy`;
+  if (status === `completed`) return `complete`;
+  if ([`healthy`, `success`].includes(status)) return `healthy`;
   return `running`;
 }
 
@@ -12638,14 +12638,55 @@ async function handleIntegratedSubmit(event) {
   }
 }
 
+function integratedFindingEvidence(result, finding) {
+  const layer = String(finding?.layer || '').toLowerCase();
+  let rows = [];
+  if ([`dns`, `availability`, `transport`, `integrity`, `scheduling`].includes(layer)) {
+    rows = (result.dns?.resolvers || []).map((resolver) => ({
+      label: resolver.name || resolver.id || `解析器`,
+      value: resolver.reachable ? `已响应 · ${Y(resolver.duration_ms)}` : `未响应`,
+      state: resolver.reachable ? `healthy` : `warning`,
+    }));
+  } else if ([`paths`, `path`, `proxy`, `route`].includes(layer)) {
+    rows = (result.paths?.paths || []).map((path) => ({
+      label: path.label || path.id || `连接路径`,
+      value: `${path.success_count || 0}/${path.sample_count || 0} 成功 · P50 ${Y(path.p50_total_ms)}`,
+      state: path.id === result.paths?.finding?.recommended_path_id ? `recommended` : ``,
+    }));
+  } else if ([`ports`, `port`, `tcp`].includes(layer)) {
+    rows = (result.ports?.results || []).map((probe) => ({
+      label: `${probe.port || `--`} · ${probe.service || probe.protocol || `TCP`}`,
+      value: probe.reachable ? `可达 · ${Y(probe.latency_ms)}` : probe.message || `不可达`,
+      state: probe.reachable ? `healthy` : `warning`,
+    }));
+  } else if ([`http`, `tls`].includes(layer)) {
+    const diagnosis = result.http?.diagnosis || {};
+    rows = [
+      { label: `HTTP`, value: diagnosis.success ? `${diagnosis.status_code || `已完成`} · TOTAL ${Y(diagnosis.total_ms)}` : diagnosis.message || `请求未完成`, state: diagnosis.success ? `healthy` : `warning` },
+      { label: `TCP / TLS`, value: `${Y(diagnosis.tcp_connect_ms)} / ${Y(diagnosis.tls_handshake_ms)}` },
+      { label: `首字节`, value: Y(diagnosis.ttfb_ms) },
+    ];
+  } else {
+    const local = result.baseline?.local_network || {};
+    rows = [
+      { label: `活动接口`, value: (local.active_interfaces || []).join(`、`) || `未识别` },
+      { label: `默认路由`, value: `${local.default_route_count || 0} 条` },
+    ];
+  }
+  if (!rows.length) {
+    rows = [{ label: `本次结论`, value: finding?.detail || finding?.title || `检测已完成` }];
+  }
+  return rows.map((row) => `<div class="integrated-result-evidence-row ${$(row.state || ``)}">
+      <strong>${$(row.label)}</strong><span>${$(row.value)}</span>
+    </div>`).join(``);
+}
+
 function renderIntegratedResult(result) {
-  const level = [`healthy`, `warning`, `critical`].includes(result.overall_status)
-    ? result.overall_status
-    : result.status === `completed` ? `healthy` : `warning`;
+  const presentation = buildIntegratedResultPresentation(result);
+  const level = presentation.level;
   integratedOutput.dataset.state = level;
-  integratedStatus.textContent =
-    level === `critical` ? `发现阻断性故障` : level === `warning` ? `发现需要关注的风险` : `关键链路状态健康`;
-  integratedDetail.textContent = result.message || `综合诊断完成`;
+  integratedStatus.textContent = presentation.statusTitle;
+  integratedDetail.textContent = presentation.statusDetail;
   updateIntegratedProgress(result.completed, result.total, String(result.status || `completed`).toUpperCase());
 
   const components = {
@@ -12656,69 +12697,47 @@ function renderIntegratedResult(result) {
     paths: result.paths,
   };
   Object.entries(components).forEach(([module, component]) =>
-    updateIntegratedStage(module, component?.status || `completed`, component?.message || component?.diagnosis?.message || `已完成`),
+    updateIntegratedStage(module, component?.status || `completed`, `检测完成`),
   );
 
-  const findings = Array.isArray(result.findings) ? result.findings : [];
-  const prioritisedFindings = findings.map((finding) => ({
-    ...finding,
-    level: integratedStageLevel(finding.status),
-  }));
-  const attentionFindings = prioritisedFindings.filter((finding) =>
-    [`critical`, `warning`].includes(finding.level),
-  );
-  const leadFinding = attentionFindings[0] || prioritisedFindings[0];
-  const queuedFindings = attentionFindings.slice(leadFinding ? 1 : 0);
-  const supportingFindings = prioritisedFindings.filter(
-    (finding) => finding !== leadFinding && !queuedFindings.includes(finding),
-  );
-  integratedFindingsTitle.textContent = `分层结论 · ${findings.length}`;
-  integratedResultState.className = `integrated-result-state ${level}`;
-  integratedResultState.textContent =
-    level === `critical`
-      ? `存在阻断故障`
-      : attentionFindings.length
-        ? `${attentionFindings.length} 项需要关注`
-        : `关键链路健康`;
-  integratedFindings.innerHTML = leadFinding
-    ? `<div class="integrated-risk-workspace">
-        <article class="integrated-lead-finding ${$(leadFinding.level)}">
-          <div><span>${leadFinding.level === `critical` ? `首要故障` : leadFinding.level === `warning` ? `首要风险` : `总体结论`}</span><em>${$(String(leadFinding.layer || `network`).toUpperCase())}</em></div>
-          <strong>${$(leadFinding.title || `诊断结论`)}</strong>
-          <p title="${$(leadFinding.detail || ``)}">${$(leadFinding.detail || ``)}</p>
-        </article>
-        <div class="integrated-finding-queue">
-          <div class="integrated-queue-heading"><strong>${queuedFindings.length ? `其他需要关注` : `诊断摘要`}</strong><span>${queuedFindings.length} FINDINGS</span></div>
-          <div class="integrated-queue-grid">
-            ${queuedFindings.length
-              ? queuedFindings.map((finding) => `<article class="integrated-finding ${$(finding.level)}" title="${$(finding.detail || ``)}">
-                  <i></i><div><span>${$(String(finding.layer || `network`).toUpperCase())}</span><strong>${$(finding.title || `诊断结论`)}</strong><p>${$(finding.detail || ``)}</p></div>
-                </article>`).join(``)
-              : `<div class="integrated-empty">没有其他需要优先处置的风险</div>`}
+  integratedFindingsTitle.textContent = presentation.attention.length
+    ? `需要处理 · ${presentation.attention.length}`
+    : `无需处理`;
+  integratedFindings.innerHTML = presentation.attention.length
+    ? presentation.attention.map((finding, index) => {
+        const actions = presentation.actions.filter((item) => item.trigger === finding);
+        return `<article class="integrated-issue ${$(finding.level)} ${index === 0 ? `lead` : ``}">
+          <i aria-hidden="true"></i>
+          <div class="integrated-issue-content has-result">
+            <div class="integrated-issue-copy">
+              <span>${$(String(finding.layer || `network`).toUpperCase())}</span>
+              <strong>${$(finding.title || `诊断结论`)}</strong>
+              <p>${$(finding.detail || ``)}</p>
+            </div>
+            <div class="integrated-issue-tools">
+              ${actions.map((item) => `<small>建议：${$(item.title || `关注该项结果`)}</small>`).join(``)}
+              <button class="quiet-button" type="button" data-integrated-result-toggle aria-expanded="false">查看结果</button>
+            </div>
           </div>
-        </div>
-      </div>
-      ${supportingFindings.length ? `<div class="integrated-support-heading"><strong>验证通过与路径提示</strong><span>${supportingFindings.length} FINDINGS</span></div>
-        <div class="integrated-support-grid">${supportingFindings.map((finding) => `<article class="integrated-support-finding ${$(finding.level)}" title="${$(finding.detail || ``)}">
-          <i></i><div><span>${$(String(finding.layer || `network`).toUpperCase())}</span><strong>${$(finding.title || `诊断结论`)}</strong><p>${$(finding.detail || ``)}</p></div>
-        </article>`).join(``)}</div>` : ``}`
-    : `<div class="integrated-empty">没有需要额外说明的异常</div>`;
+          <div class="integrated-issue-result" hidden>${integratedFindingEvidence(result, finding)}</div>
+        </article>`;
+      }).join(``)
+    : `<div class="integrated-empty healthy"><strong>关键链路均已通过</strong><span>当前无需调整网络或代理设置</span></div>`;
 
-  const remediations = Array.isArray(result.remediations) ? result.remediations : [];
-  integratedRemediations.innerHTML = remediations.length
-    ? remediations.map((item, index) => `<article class="integrated-remediation">
-        <span>${String(item.priority || index + 1).padStart(2, `0`)}</span><div><strong>${$(item.title || `处置建议`)}</strong><p>${$(item.detail || ``)}</p><small>${$(String(item.module || `network`).toUpperCase())}</small></div>
-      </article>`).join(``)
-    : `<div class="integrated-empty">当前无需治理动作，可将结果保留为基线</div>`;
+  integratedVerifiedSection.hidden = presentation.verified.length === 0;
+  integratedVerifiedCount.textContent = `${presentation.verified.length} 项`;
+  integratedVerified.innerHTML = presentation.verified.map((finding) => `<article class="integrated-verified-item ${$(finding.level)}">
+      <i aria-hidden="true"></i><div><span>${$(String(finding.layer || `network`).toUpperCase())}</span><strong>${$(finding.title || `验证完成`)}</strong><p>${$(finding.detail || ``)}</p></div>
+    </article>`).join(``);
+  integratedDetailsSummary.textContent = `${presentation.verified.length} 项已验证 · 关键指标、地域链路与原始报告`;
 
   const bestPath = B(result.paths);
   const http = result.http?.diagnosis || {};
-  const ipv4 = result.baseline?.ip_stacks?.find((item) => item.family === `IPv4`);
-  const ipv6 = result.baseline?.ip_stacks?.find((item) => item.family === `IPv6`);
+  const local = result.baseline?.local_network || {};
   integratedEvidence.innerHTML = [
-    [`STATUS`, level === `healthy` ? `链路健康` : level === `warning` ? `路径可优化` : `存在故障`, result.target_url || `目标未识别`],
-    [`LOCAL`, `本地网络`, `${ipv4?.available ? `IPv4 ${Y(ipv4.latency_ms)}` : `IPv4 不可用`} · ${ipv6?.available ? `IPv6 ${Y(ipv6.latency_ms)}` : `IPv6 不可用`}`],
+    [`LOCAL`, `接口与路由`, `${(local.active_interfaces || []).join(`、`) || `未识别接口`} · ${local.default_route_count || 0} 条默认路由`],
     [`DNS`, `解析器对照`, `${result.dns?.comparison?.reachable_resolvers || 0}/${result.dns?.total || 0} 可达 · ${result.dns?.comparison?.public_address_sets || 0} 组地址`],
+    [`PORT`, `端口协议`, `${result.ports?.open_count || 0}/${result.ports?.total_count || 0} 可达`],
     [`HTTP`, `服务链路`, `${http.status_code || `--`} · TTFB ${Y(http.ttfb_ms)} · TOTAL ${Y(http.total_ms)}`],
     [`PATH`, `最佳路径`, `${bestPath?.label || `未识别`} · P50 ${Y(bestPath?.p50_total_ms)}`],
   ].map(([code, title, detail]) => `<article><span>${code}</span><strong>${$(title)}</strong><p>${$(detail)}</p></article>`).join(``);
@@ -12727,6 +12746,18 @@ function renderIntegratedResult(result) {
   renderGovernanceCenter();
   if (!document.querySelector(`[data-module-view="integrated"]`)?.hidden)
     syncRoutePanel(`integrated`);
+}
+
+function handleIntegratedRemediation(event) {
+  const button = event.target.closest(`[data-integrated-result-toggle]`);
+  if (!button) return;
+  const issue = button.closest(`.integrated-issue`);
+  const result = issue?.querySelector(`.integrated-issue-result`);
+  if (!result) return;
+  const expanded = button.getAttribute(`aria-expanded`) === `true`;
+  result.hidden = expanded;
+  button.setAttribute(`aria-expanded`, String(!expanded));
+  button.textContent = expanded ? `查看结果` : `收起结果`;
 }
 
 async function saveIntegratedHistory(result) {
@@ -13449,7 +13480,7 @@ function ii(e) {
 
 function setCDNResultActionState(button, hasResult, blockedReason) {
   const blocked = Boolean(hasResult && blockedReason);
-  button.disabled = !hasResult;
+  button.disabled = !hasResult || blocked;
   button.dataset.blocked = blocked ? `true` : `false`;
   button.setAttribute(`aria-disabled`, String(blocked));
   button.title = blockedReason || ``;
@@ -13458,7 +13489,7 @@ function setCDNResultActionState(button, hasResult, blockedReason) {
 function resetCDNComparison() {
   cdnComparison.dataset.state = `running`;
   cdnComparisonStatus.textContent = `正在建立当前 DNS 基线`;
-  cdnPathBadge.textContent = cdnRouteMode.value === `proxy` ? `现有代理` : cdnRouteMode.value === `direct` ? `本机网络` : `自动出口`;
+  cdnPathBadge.textContent = cdnRouteMode.value === `proxy` ? `代理出口` : `本机网络`;
   cdnPathBadge.className = ``;
   cdnCloudflareBadge.textContent = `Cloudflare 待验证`;
   cdnCloudflareBadge.className = ``;
@@ -13695,17 +13726,13 @@ function syncCDNRouteOptions() {
   cdnUpstreamControl.classList.toggle(`is-visible`, manualProxy);
   cdnUpstreamProxy.disabled = !manualProxy;
   const routeCopy = {
-    auto: {
-      label: `自动兼容`,
-      detail: `自动识别本地代理与 TUN，并使用与当前网络一致的出口测试候选 IP。`,
-    },
     direct: {
       label: `本机网络`,
       detail: `绕过显式 HTTP / SOCKS 代理；如果系统存在 TUN，流量仍可能由 TUN 接管。`,
     },
     proxy: {
-      label: `现有代理`,
-      detail: `通过指定的 HTTP / HTTPS / SOCKS5 上游测试候选 IP，结果仅代表该代理出口。`,
+      label: `代理出口（专项）`,
+      detail: `仅用于评估固定代理出口；结果不代表本机网络，也不能生成直连加速配置。`,
     },
   }[cdnRouteMode.value] || { label: `当前网络`, detail: `` };
   cdnRouteScope.textContent = routeCopy.label;
@@ -13716,8 +13743,8 @@ function syncCDNRouteOptions() {
 }
 async function loadCDNProxyCompatibility() {
   cdnCompatibility.dataset.state = `checking`;
-  cdnCompatibilityTitle.textContent = `正在识别代理环境`;
-  cdnCompatibilityDetail.textContent = `自动选择与当前网络一致的测试出口`;
+  cdnCompatibilityTitle.textContent = `正在检查本机出口`;
+  cdnCompatibilityDetail.textContent = `优选默认绕过显式代理`;
   cdnCompatibilityRefresh.disabled = true;
   try {
     const result = await detectProxyCompatibility();
@@ -13729,8 +13756,8 @@ async function loadCDNProxyCompatibility() {
   } catch (error) {
     console.error(error);
     cdnCompatibility.dataset.state = `warning`;
-    cdnCompatibilityTitle.textContent = `代理环境识别失败`;
-    cdnCompatibilityDetail.textContent = `本次将使用系统网络出口`;
+    cdnCompatibilityTitle.textContent = `出口环境识别失败`;
+    cdnCompatibilityDetail.textContent = `仍将使用本机网络出口`;
   } finally {
     cdnCompatibilityRefresh.disabled = false;
     syncCDNRouteOptions();
@@ -13739,15 +13766,12 @@ async function loadCDNProxyCompatibility() {
 function renderCDNProxyCompatibility(result) {
   const provider = result.provider || ``;
   const mode = result.mode || `direct`;
-  const modeLabel = {
-    direct: `本机网络`,
-    system_proxy: `系统代理`,
-    tun: `TUN 路径`,
-    hybrid: `代理 + TUN`,
-  }[mode] || `当前网络`;
-  cdnCompatibility.dataset.state = result.detected ? (result.suggested_proxy_url ? `ready` : `warning`) : `direct`;
-  cdnCompatibilityTitle.textContent = provider ? `${provider} · ${modeLabel}` : modeLabel;
-  cdnCompatibilityDetail.textContent = result.message || result.coverage || `自动选择当前有效出口`;
+  const hasTunnel = mode === `tun` || mode === `hybrid` || Boolean(result.tunnel_detected);
+  cdnCompatibility.dataset.state = hasTunnel ? `warning` : `direct`;
+  cdnCompatibilityTitle.textContent = hasTunnel
+    ? `${provider || `系统`} · TUN 路径`
+    : `将使用本机网络`;
+  cdnCompatibilityDetail.textContent = result.message || result.coverage || `候选测试将绕过显式代理`;
   cdnCompatibilityDetail.title = [result.coverage, result.suggested_proxy_url].filter(Boolean).join(` · `);
 }
 
@@ -17667,7 +17691,7 @@ async function So(e) {
       (cdnScheme.value = String(e.target_url || ``).startsWith(`http://`) ? `http` : `https`),
       (cdnMode.value = e.mode || `tcp`),
       (cdnPort.value = e.port || 443),
-      (cdnRouteMode.value = e.requested_route || `auto`),
+      (cdnRouteMode.value = e.requested_route === `proxy` ? `proxy` : `direct`),
       (cdnUpstreamProxy.value = e.upstream_proxy_url || ``),
       (cdnPresetV4.checked = (e.results || []).some((item) => item.candidate?.source === `cloudflare_ipv4`)),
       (cdnPresetV6.checked = (e.results || []).some((item) => item.candidate?.source === `cloudflare_ipv6`)),

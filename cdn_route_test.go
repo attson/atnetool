@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func TestConfigureCDNRouteUsesDetectedProxyInAutoMode(t *testing.T) {
+func TestConfigureCDNRouteDefaultsToLocalNetworkEvenWhenProxyIsDetected(t *testing.T) {
 	settings := cdnOptimizeSettings{}
 	result := CDNOptimizeResult{ProxyCompatibility: ProxyCompatibility{
 		RecommendedRoute:  cdnRouteProxy,
@@ -21,7 +21,21 @@ func TestConfigureCDNRouteUsesDetectedProxyInAutoMode(t *testing.T) {
 	if err := configureCDNRoute(CDNOptimizeOptions{}, &settings, &result); err != nil {
 		t.Fatal(err)
 	}
-	if settings.UpstreamProxy == nil || result.EffectiveRoute != cdnRouteProxy || result.UpstreamProxyURL != "http://127.0.0.1:7890" {
+	if settings.UpstreamProxy != nil || result.RequestedRoute != cdnRouteDirect || result.EffectiveRoute != cdnRouteDirect || result.UpstreamProxyURL != "" {
+		t.Fatalf("settings=%+v result=%+v", settings, result)
+	}
+}
+
+func TestConfigureCDNRouteTreatsLegacyAutoModeAsLocalNetwork(t *testing.T) {
+	settings := cdnOptimizeSettings{}
+	result := CDNOptimizeResult{ProxyCompatibility: ProxyCompatibility{
+		RecommendedRoute:  cdnRouteProxy,
+		SuggestedProxyURL: "http://127.0.0.1:7890",
+	}}
+	if err := configureCDNRoute(CDNOptimizeOptions{RouteMode: cdnRouteAuto}, &settings, &result); err != nil {
+		t.Fatal(err)
+	}
+	if settings.UpstreamProxy != nil || result.RequestedRoute != cdnRouteDirect || result.EffectiveRoute != cdnRouteDirect {
 		t.Fatalf("settings=%+v result=%+v", settings, result)
 	}
 }

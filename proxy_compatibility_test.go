@@ -12,7 +12,7 @@ func TestBuildProxyCompatibilityRecognisesClashHybridMode(t *testing.T) {
 	if !result.Detected || result.Provider != "Clash / Mihomo" || result.Mode != "hybrid" {
 		t.Fatalf("result=%+v", result)
 	}
-	if result.SuggestedProxyURL != "http://127.0.0.1:7890" || result.RecommendedRoute != "proxy" || !result.FakeIPDetected {
+	if result.SuggestedProxyURL != "http://127.0.0.1:7890" || result.RecommendedRoute != "direct" || !result.FakeIPDetected {
 		t.Fatalf("result=%+v", result)
 	}
 }

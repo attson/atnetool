@@ -197,22 +197,32 @@ func buildIntegratedAssessment(result IntegratedDiagnosisResult) ([]IntegratedFi
 	}
 
 	for _, item := range result.Baseline.Findings {
+		// Fixed public-endpoint probes belong to the overall network check. The
+		// integrated site check uses its target-specific path comparison instead.
+		layer := strings.ToLower(strings.TrimSpace(item.Layer))
+		if layer == "egress" || layer == "dns" {
+			continue
+		}
 		addFinding(item.Layer, item.Status, item.Title, item.Detail)
 	}
-	for _, item := range result.DNS.Findings {
+	for _, item := range integratedDNSFindings(result.DNS) {
 		addFinding("dns", item.Status, item.Title, item.Detail)
 	}
 	for _, item := range result.Ports.Findings {
 		addFinding("ports", item.Status, item.Title, item.Detail)
 	}
 	for _, item := range result.DNS.Remediations {
-		addRemediation(2, item.Action, "dns", item.Title, item.Detail)
+		addRemediation(3, item.Action, "dns", item.Title, item.Detail)
 	}
 	for _, item := range result.Ports.Remediations {
-		addRemediation(2, item.Action, "ports", item.Title, item.Detail)
+		addRemediation(3, item.Action, "ports", item.Title, item.Detail)
 	}
 	for _, item := range result.Baseline.Remediations {
-		addRemediation(1, item.Action, "baseline", item.Title, item.Detail)
+		// DNS diagnosis and path comparison are already part of this integrated run.
+		if item.Action == "diagnose_dns" || item.Action == "compare_proxy" || item.Action == "compare_routes" {
+			continue
+		}
+		addRemediation(2, item.Action, "baseline", item.Title, item.Detail)
 	}
 
 	diagnosis := result.HTTP.Diagnosis
@@ -222,7 +232,7 @@ func buildIntegratedAssessment(result IntegratedDiagnosisResult) ([]IntegratedFi
 			layer = "http"
 		}
 		addFinding(layer, "critical", "目标请求未完成", diagnosis.Message)
-		addRemediation(1, "isolate", layer, "先处理失败阶段", integratedFailureRemediation(diagnosis))
+		addRemediation(1, "isolate", layer, integratedFailureTitle(layer), integratedFailureRemediation(diagnosis))
 	} else {
 		addFinding("http", "healthy", "HTTP/TLS 请求完成", fmt.Sprintf("HTTP %d，TTFB %d ms，总耗时 %d ms。", diagnosis.StatusCode, diagnosis.TTFBMS, diagnosis.TotalMS))
 		if diagnosis.TTFBMS > 1000 || diagnosis.TotalMS > 2000 {
@@ -241,9 +251,6 @@ func buildIntegratedAssessment(result IntegratedDiagnosisResult) ([]IntegratedFi
 	}
 	if result.Paths.Finding.Title != "" {
 		addFinding("paths", result.Paths.Finding.Level, result.Paths.Finding.Title, result.Paths.Finding.Detail)
-		if result.Paths.Finding.Level == "warning" || result.Paths.Finding.Level == "critical" {
-			addRemediation(2, "route", "paths", "采用路径对照结论验证", result.Paths.Finding.Detail)
-		}
 	}
 
 	if len(findings) == 0 {
@@ -253,6 +260,7 @@ func buildIntegratedAssessment(result IntegratedDiagnosisResult) ([]IntegratedFi
 		return integratedSeverity(findings[left].Status) > integratedSeverity(findings[right].Status)
 	})
 	sort.SliceStable(remediations, func(left, right int) bool { return remediations[left].Priority < remediations[right].Priority })
+	remediations = dedupeIntegratedRemediations(remediations)
 	overall := "healthy"
 	for _, item := range findings {
 		if item.Status == "critical" {
@@ -264,6 +272,126 @@ func buildIntegratedAssessment(result IntegratedDiagnosisResult) ([]IntegratedFi
 		}
 	}
 	return limitIntegratedFindings(findings, 16), limitIntegratedRemediations(remediations, 12), overall
+}
+
+func integratedDNSFindings(result DNSDiagnoseResult) []DNSFinding {
+	warningCount := 0
+	firstWarning := -1
+	hasDifference := result.Comparison.AddressDifference
+	for index, finding := range result.Findings {
+		if normaliseIntegratedStatus(finding.Status) != "warning" {
+			continue
+		}
+		if firstWarning < 0 {
+			firstWarning = index
+		}
+		warningCount++
+		if strings.Contains(finding.Title, "差异") || strings.Contains(finding.Title, "不同") {
+			hasDifference = true
+		}
+	}
+
+	unreachable := make([]string, 0)
+	for _, resolver := range result.Resolvers {
+		if resolver.Transport != "system" && !resolver.Reachable {
+			unreachable = append(unreachable, resolver.Name)
+		}
+	}
+	if warningCount == 0 || (warningCount == 1 && !(hasDifference && len(unreachable) > 0)) {
+		return result.Findings
+	}
+
+	title := "DNS 检测存在需要关注的结果"
+	switch {
+	case hasDifference && len(unreachable) > 0:
+		title = fmt.Sprintf("DNS 解析存在差异，%d 个公共解析器未响应", len(unreachable))
+	case hasDifference:
+		title = "DNS 解析存在差异"
+	case len(unreachable) > 0:
+		title = fmt.Sprintf("%d 个公共解析器未响应", len(unreachable))
+	}
+	details := make([]string, 0, 3)
+	if len(result.Resolvers) > 0 {
+		details = append(details, fmt.Sprintf("%d/%d 个解析器返回响应", result.Comparison.ReachableResolvers, len(result.Resolvers)))
+	}
+	if len(unreachable) > 0 {
+		details = append(details, strings.Join(unreachable, "、")+" 未响应")
+	}
+	if hasDifference {
+		details = append(details, "地址差异可能来自 CDN 调度或解析策略")
+	}
+	if len(details) == 0 {
+		for _, finding := range result.Findings {
+			if normaliseIntegratedStatus(finding.Status) == "warning" && strings.TrimSpace(finding.Detail) != "" {
+				details = append(details, strings.TrimSpace(finding.Detail))
+			}
+		}
+	}
+	if len(details) == 0 {
+		details = append(details, "请展开查看各解析器结果")
+	}
+	merged := DNSFinding{Code: "integrated_dns_summary", Layer: "dns", Status: "warning", Title: title, Detail: strings.Join(details, "；") + "。"}
+	findings := make([]DNSFinding, 0, len(result.Findings)-warningCount+1)
+	for index, finding := range result.Findings {
+		if index == firstWarning {
+			findings = append(findings, merged)
+		}
+		if normaliseIntegratedStatus(finding.Status) == "warning" {
+			continue
+		}
+		findings = append(findings, finding)
+	}
+	return findings
+}
+
+func integratedFailureTitle(layer string) string {
+	switch strings.ToLower(strings.TrimSpace(layer)) {
+	case "dns":
+		return "恢复目标域名解析"
+	case "tcp", "connect":
+		return "恢复目标 TCP 连接"
+	case "tls":
+		return "处理 TLS 握手失败"
+	case "http":
+		return "处理目标请求失败"
+	default:
+		return "定位请求失败阶段"
+	}
+}
+
+func integratedRemediationGroup(item IntegratedRemediation) string {
+	action := strings.ToLower(strings.TrimSpace(item.Action))
+	module := strings.ToLower(strings.TrimSpace(item.Module))
+	switch action {
+	case "compare_proxy", "compare_routes", "verify_tunnel", "route":
+		return "path_validation"
+	case "inspect_tls":
+		return "tls_validation"
+	case "dns", "diagnose_dns":
+		return "dns_diagnosis"
+	case "isolate":
+		switch module {
+		case "tls":
+			return "tls_validation"
+		case "dns":
+			return "dns_diagnosis"
+		}
+	}
+	return action + ":" + module + ":" + strings.ToLower(strings.TrimSpace(item.Title))
+}
+
+func dedupeIntegratedRemediations(items []IntegratedRemediation) []IntegratedRemediation {
+	seen := make(map[string]struct{}, len(items))
+	result := make([]IntegratedRemediation, 0, len(items))
+	for _, item := range items {
+		group := integratedRemediationGroup(item)
+		if _, exists := seen[group]; exists {
+			continue
+		}
+		seen[group] = struct{}{}
+		result = append(result, item)
+	}
+	return result
 }
 
 func normaliseIntegratedStatus(status string) string {
