@@ -76,12 +76,15 @@ test('configured proxy is context rather than an unresolved issue after path com
 
 test('presentation excludes generic public egress probes from a target site check', () => {
   const model = buildIntegratedResultPresentation({
+    status: 'completed',
+    overall_status: 'critical',
     findings: [
-      { layer: 'egress', status: 'warning', title: '公网访问依赖代理' },
+      { layer: 'egress', status: 'critical', title: '公网访问依赖代理' },
       { layer: 'paths', status: 'healthy', title: '目标网站直连正常' },
     ],
   });
 
+  assert.equal(model.level, 'healthy');
   assert.equal(model.attention.length, 0);
   assert.deepEqual(model.verified.map((item) => item.title), ['目标网站直连正常']);
 });

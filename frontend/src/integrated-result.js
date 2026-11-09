@@ -214,7 +214,8 @@ export function buildIntegratedResultPresentation(result = {}) {
   const lead = attention[0] || null;
   const actions = prepareActions(result.remediations, attention, result);
   const reportedLevel = integratedResultLevel(result.overall_status);
-  const level = criticalCount || reportedLevel === 'critical'
+  const reportComplete = String(result.status || '').toLowerCase() === 'completed';
+  const level = criticalCount || (!reportComplete && reportedLevel === 'critical')
     ? 'critical'
     : warningCount || (!findings.length && reportedLevel === 'warning')
       ? 'warning'
