@@ -2,10 +2,58 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildIntegratedComparisonPresentation,
   buildIntegratedResultPresentation,
   integratedResultLevel,
   remediationDestination,
 } from './integrated-result.js';
+
+test('comparison presentation exposes request-chain metrics and improvements', () => {
+  const model = buildIntegratedComparisonPresentation({
+    enabled: true,
+    comparable: true,
+    primary_url: 'https://a.example/',
+    compare_url: 'https://b.example/',
+    primary: {
+      success: true, status_code: 200,
+      dns_lookup_ms: 40, tcp_connect_ms: 80, tls_handshake_ms: 60, ttfb_ms: 200, total_ms: 500,
+    },
+    compare: {
+      success: true, status_code: 204,
+      dns_lookup_ms: 10, tcp_connect_ms: 50, tls_handshake_ms: 40, ttfb_ms: 100, total_ms: 300,
+    },
+    ttfb_improvement_percent: 50,
+    total_improvement_percent: 40,
+  });
+
+  assert.equal(model.primaryHost, 'a.example');
+  assert.equal(model.compareHost, 'b.example');
+  assert.deepEqual(model.metrics.map((metric) => metric.key), ['dns', 'tcp', 'tls', 'ttfb', 'total']);
+  assert.deepEqual(model.metrics.map((metric) => metric.compareMS), [10, 50, 40, 100, 300]);
+  assert.equal(model.primaryStatus, 'HTTP 200');
+  assert.equal(model.compareStatus, 'HTTP 204');
+  assert.equal(model.ttfbImprovementPercent, 50);
+  assert.equal(model.totalImprovementPercent, 40);
+});
+
+test('comparison presentation retains failure evidence without improvement claims', () => {
+  const model = buildIntegratedComparisonPresentation({
+    enabled: true,
+    comparable: false,
+    primary_url: 'https://a.example/',
+    compare_url: 'https://b.example/',
+    primary: { success: true, status_code: 200, total_ms: 500 },
+    compare: { success: false, failed_stage: 'tls', tls_handshake_ms: 35, total_ms: 120 },
+    ttfb_improvement_percent: 50,
+    total_improvement_percent: 76,
+  });
+
+  assert.equal(model.compareStatus, 'TLS 阶段失败');
+  assert.equal(model.comparable, false);
+  assert.equal(model.ttfbImprovementPercent, null);
+  assert.equal(model.totalImprovementPercent, null);
+  assert.equal(model.metrics.find((metric) => metric.key === 'tls').compareMS, 35);
+});
 
 test('presentation separates issues from verified findings', () => {
   const model = buildIntegratedResultPresentation({

@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"math"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -254,5 +256,65 @@ func TestApplyCDNRecommendationValidationUpdatesRecommendedNode(t *testing.T) {
 	})
 	if !result.TargetValidated || !result.Results[0].VerifiedCloudflare || result.Results[0].CFRay != "abc-HKG" {
 		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestBuildCDNRequestComparisonUsesFullHTTPSMetrics(t *testing.T) {
+	current := CDNProbeResult{
+		Candidate: CDNCandidate{IP: "104.21.58.214"}, SampleCount: 4, SuccessCount: 4, SuccessRate: 1,
+		P50TCPMS: 40, P50TLSMS: 70, P50TTFBMS: 180, P50TotalMS: 240, P95TotalMS: 320,
+		StatusCode: 200, CFRay: "current-HKG", CFColo: "HKG", CDNProvider: "Cloudflare",
+	}
+	recommended := CDNProbeResult{
+		Candidate: CDNCandidate{IP: "172.64.52.204"}, SampleCount: 4, SuccessCount: 4, SuccessRate: 1,
+		P50TCPMS: 20, P50TLSMS: 30, P50TTFBMS: 50, P50TotalMS: 100, P95TotalMS: 140,
+		StatusCode: 200, CFRay: "recommended-NRT", CFColo: "NRT", CDNProvider: "Cloudflare",
+	}
+	comparison := buildCDNRequestComparison(current, recommended)
+	if !comparison.Comparable || comparison.SameIP {
+		t.Fatalf("comparison state=%+v", comparison)
+	}
+	if comparison.Current.P50TTFBMS != 180 || comparison.Recommended.P50TotalMS != 100 {
+		t.Fatalf("full request metrics missing: %+v", comparison)
+	}
+	if comparison.TotalDeltaMS != 140 || math.Abs(comparison.TTFBImprovementPercent-(130.0/180.0*100)) > 0.001 {
+		t.Fatalf("improvement=%+v", comparison)
+	}
+}
+
+func TestBuildCDNRequestComparisonMarksFailedSideNotComparable(t *testing.T) {
+	current := CDNProbeResult{Candidate: CDNCandidate{IP: "104.21.58.214"}, SampleCount: 3, SuccessCount: 0}
+	recommended := CDNProbeResult{Candidate: CDNCandidate{IP: "172.64.52.204"}, SampleCount: 3, SuccessCount: 3, P50TotalMS: 80}
+	comparison := buildCDNRequestComparison(current, recommended)
+	if comparison.Comparable || comparison.Current.IP != current.Candidate.IP || comparison.Recommended.IP != recommended.Candidate.IP {
+		t.Fatalf("comparison=%+v", comparison)
+	}
+}
+
+func TestRunCDNFullRequestProbeCapturesHTTPChain(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("CF-Ray", "request-chain-HKG")
+		writer.Header().Set("Server", "cloudflare")
+		_, _ = writer.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	host, port, err := net.SplitHostPort(strings.TrimPrefix(server.URL, "http://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if host != "127.0.0.1" {
+		t.Fatalf("unexpected test server host %q", host)
+	}
+	portNumber, err := strconv.Atoi(port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	probe := runCDNFullRequestProbe(context.Background(), "http://example.com/check", "example.com", host, 2, portNumber, nil)
+	if probe.SuccessCount != 2 || probe.P50TCPMS <= 0 || probe.P50TTFBMS <= 0 || probe.P50TotalMS <= 0 {
+		t.Fatalf("probe=%+v", probe)
+	}
+	if probe.CFRay != "request-chain-HKG" || probe.CDNProvider != "Cloudflare" {
+		t.Fatalf("cloudflare evidence missing: %+v", probe)
 	}
 }

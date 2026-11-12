@@ -11,7 +11,11 @@ import {
   getCDNGovernanceBlockReason,
 } from './cdn-actions.js';
 import { summariseNetworkOverview } from './network-overview.js';
-import { buildIntegratedResultPresentation } from './integrated-result.js';
+import {
+  buildIntegratedComparisonPresentation,
+  buildIntegratedResultPresentation,
+} from './integrated-result.js';
+import { formatCloudflareColo } from './cloudflare-colos.js';
 
 (function () {
   let e = document.createElement(`link`).relList;
@@ -10054,6 +10058,28 @@ Ce.innerHTML = `
                     </button>
                     </div>
 
+                    <div class="integrated-compare-setting">
+                        <label class="integrated-compare-toggle" for="integrated-compare-enabled">
+                            <input id="integrated-compare-enabled" type="checkbox">
+                            <span><strong>对比另一个域名</strong><small>使用相同连接策略比较完整 HTTP 请求链路</small></span>
+                        </label>
+                        <div class="target-control url-target-control integrated-compare-target" id="integrated-compare-target-control" hidden>
+                            <div class="field-label-row">
+                                <label for="integrated-compare-target">对比域名 B</label>
+                                <span>域名 A 仍执行完整检查</span>
+                            </div>
+                            <div class="target-input-wrap">
+                                <select class="target-scheme-select" id="integrated-compare-scheme" aria-label="对比请求协议">
+                                    <option value="https" selected>HTTPS</option>
+                                    <option value="http">HTTP</option>
+                                </select>
+                                <input id="integrated-compare-target" type="text" inputmode="url" autocomplete="url"
+                                       autocapitalize="none" spellcheck="false" placeholder="example.com">
+                            </div>
+                            <p class="field-message" id="integrated-compare-message">域名 A 与 B 必须不同</p>
+                        </div>
+                    </div>
+
                     <details class="advanced-settings">
                         <summary><span>高级设置</span><small>默认使用系统连接策略</small></summary>
                     <fieldset class="proxy-control integrated-proxy-control">
@@ -10099,6 +10125,7 @@ Ce.innerHTML = `
                     </div>
 
                     <div class="integrated-results" id="integrated-results" hidden>
+                        <section class="integrated-domain-comparison" id="integrated-domain-comparison" hidden></section>
                         <div class="integrated-result-grid">
                             <section class="integrated-issues-section">
                                 <div class="integrated-section-title">
@@ -10857,11 +10884,21 @@ Ce.innerHTML = `
                             <div><span>丢包变化</span><strong id="cdn-loss-uplift">--</strong><small id="cdn-loss-values">-- → --</small></div>
                             <div><span>速度变化</span><strong id="cdn-speed-uplift">--</strong><small id="cdn-speed-values">-- → --</small></div>
                         </div>
+                        <div class="cdn-request-chain" id="cdn-request-chain" data-state="empty">
+                            <div class="cdn-request-chain-heading"><strong>完整 HTTP(S) 请求链路（固定 IP，DNS 不计入）</strong><span id="cdn-request-chain-status">等待建立请求对比</span></div>
+                            <div class="cdn-request-chain-grid">
+                                <div><span>TCP 建连</span><strong id="cdn-request-tcp-values">-- → --</strong></div>
+                                <div><span>TLS 握手</span><strong id="cdn-request-tls-values">-- → --</strong></div>
+                                <div><span>TTFB</span><strong id="cdn-request-ttfb-values">-- → --</strong></div>
+                                <div><span>总耗时</span><strong id="cdn-request-total-values">-- → --</strong><small id="cdn-request-total-uplift">--</small></div>
+                                <div><span>成功率</span><strong id="cdn-request-success-values">-- → --</strong></div>
+                            </div>
+                        </div>
                         <p class="cdn-comparison-note" id="cdn-comparison-note">完成测试后显示当前 DNS 节点与推荐节点的同口径对比。</p>
                     </section>
                     <div class="cdn-table" role="table" aria-label="Cloudflare IP 优选结果">
                         <div class="cdn-row cdn-head" role="row">
-                            <span>排名</span><span>IP 地址</span><span>已发送</span><span>已接收</span><span>丢包率</span><span>平均延迟</span><span>下载速度</span><span>地区码</span><span>CDN / 状态</span>
+                            <span>排名</span><span>IP 地址</span><span>已发送</span><span>已接收</span><span>丢包率</span><span>平均延迟</span><span>下载速度</span><span>节点地区</span><span>CDN / 状态</span>
                         </div>
                         <div id="cdn-results"></div>
                     </div>
@@ -10890,7 +10927,7 @@ Ce.innerHTML = `
                             <span aria-hidden="true">▣</span><span>复制完整报告</span>
                         </button>
                         <button class="secondary-button cdn-copy-button" id="cdn-copy-button" type="button" disabled>
-                            <span aria-hidden="true">▣</span><span>复制当前域名配置</span>
+                            <span aria-hidden="true">▣</span><span>复制 /etc/hosts 配置</span>
                         </button>
                         <button class="secondary-button cdn-copy-button" id="cdn-export-button" type="button" disabled>
                             <span aria-hidden="true">⇩</span><span>导出 CSV</span>
@@ -11513,6 +11550,14 @@ var Pe = document.querySelector(`#trace-list`),
   cdnLossValues = document.querySelector(`#cdn-loss-values`),
   cdnSpeedUplift = document.querySelector(`#cdn-speed-uplift`),
   cdnSpeedValues = document.querySelector(`#cdn-speed-values`),
+  cdnRequestChain = document.querySelector(`#cdn-request-chain`),
+  cdnRequestChainStatus = document.querySelector(`#cdn-request-chain-status`),
+  cdnRequestTCPValues = document.querySelector(`#cdn-request-tcp-values`),
+  cdnRequestTLSValues = document.querySelector(`#cdn-request-tls-values`),
+  cdnRequestTTFBValues = document.querySelector(`#cdn-request-ttfb-values`),
+  cdnRequestTotalValues = document.querySelector(`#cdn-request-total-values`),
+  cdnRequestTotalUplift = document.querySelector(`#cdn-request-total-uplift`),
+  cdnRequestSuccessValues = document.querySelector(`#cdn-request-success-values`),
   cdnComparisonNote = document.querySelector(`#cdn-comparison-note`),
   tn = document.querySelector(`#cdn-results`),
   nn = document.querySelector(`#cdn-governance-list`),
@@ -11637,6 +11682,11 @@ const integratedForm = document.querySelector(`#integrated-form`),
   integratedTarget = document.querySelector(`#integrated-target`),
   integratedScheme = document.querySelector(`#integrated-scheme`),
   integratedTargetMessage = document.querySelector(`#integrated-target-message`),
+  integratedCompareEnabled = document.querySelector(`#integrated-compare-enabled`),
+  integratedCompareTargetControl = document.querySelector(`#integrated-compare-target-control`),
+  integratedCompareTarget = document.querySelector(`#integrated-compare-target`),
+  integratedCompareScheme = document.querySelector(`#integrated-compare-scheme`),
+  integratedCompareMessage = document.querySelector(`#integrated-compare-message`),
   integratedProxyAddress = document.querySelector(`#integrated-proxy-address`),
   integratedProxyInput = document.querySelector(`#integrated-proxy-input`),
   integratedProxyMessage = document.querySelector(`#integrated-proxy-message`),
@@ -11649,6 +11699,7 @@ const integratedForm = document.querySelector(`#integrated-form`),
   integratedProgressBar = document.querySelector(`#integrated-progress-bar`),
   integratedStages = [...document.querySelectorAll(`[data-integrated-module]`)],
   integratedResults = document.querySelector(`#integrated-results`),
+  integratedDomainComparison = document.querySelector(`#integrated-domain-comparison`),
   integratedFindings = document.querySelector(`#integrated-findings`),
   integratedFindingsTitle = document.querySelector(`#integrated-findings-title`),
   integratedEvidence = document.querySelector(`#integrated-evidence`),
@@ -11874,6 +11925,10 @@ var Or = [
   integratedTarget.addEventListener(`input`, clearIntegratedTargetError),
   integratedTarget.addEventListener(`blur`, () => normaliseTargetField(integratedTarget, integratedScheme)),
   integratedScheme.addEventListener(`change`, clearIntegratedTargetError),
+  integratedCompareEnabled.addEventListener(`change`, updateIntegratedComparisonVisibility),
+  integratedCompareTarget.addEventListener(`input`, clearIntegratedComparisonError),
+  integratedCompareTarget.addEventListener(`blur`, () => normaliseTargetField(integratedCompareTarget, integratedCompareScheme)),
+  integratedCompareScheme.addEventListener(`change`, clearIntegratedComparisonError),
   integratedProxyInput.addEventListener(`input`, clearIntegratedProxyError),
   document
     .querySelectorAll(`input[name="integrated-proxy-mode"]`)
@@ -11984,6 +12039,8 @@ trendMetric.addEventListener(`change`, () => renderHistoryTrends());
 trendRange.addEventListener(`change`, () => renderHistoryTrends());
 window.addEventListener(`atnetool:localechange`, () => {
   syncLanguageToggle();
+  refreshCloudflareColoLabels();
+  if (M) renderCDNComparison(M);
   is();
   document.querySelectorAll(`select`).forEach((select) => syncStyledSelect(select));
   if (!_.hidden && N.length) requestAnimationFrame(H);
@@ -12431,7 +12488,7 @@ window.runtime?.EventsOn &&
   te(`cdn:result`, (e) => {
     if (!e || e.task_id !== ur) return;
     if (e.probe?.candidate?.ip) ri(e.probe);
-    const labels = { discovery: `DISCOVERY`, verification: `VERIFYING`, latency: `LATENCY`, download: `DOWNLOAD`, recommendation_validation: `VALIDATING` };
+    const labels = { discovery: `DISCOVERY`, verification: `VERIFYING`, latency: `LATENCY`, download: `DOWNLOAD`, request_comparison: `REQUEST COMPARE`, recommendation_validation: `VALIDATING` };
     pi(e.complete, e.total, labels[e.stage] || `RUNNING`);
     if (e.message) Yt.textContent = e.message;
   }),
@@ -12473,7 +12530,16 @@ function initialiseIntegratedControls() {
   const selectedMode = document.querySelector(`input[name="proxy-mode"]:checked`)?.value || `system`;
   const selected = document.querySelector(`input[name="integrated-proxy-mode"][value="${selectedMode}"]`);
   if (selected) selected.checked = true;
+  updateIntegratedComparisonVisibility();
   updateIntegratedProxyVisibility();
+}
+
+function updateIntegratedComparisonVisibility() {
+  const enabled = integratedCompareEnabled.checked;
+  integratedCompareTargetControl.hidden = !enabled;
+  integratedCompareTarget.disabled = !enabled || Boolean(integratedTaskID);
+  setSchemeDisabled(integratedCompareScheme, !enabled || Boolean(integratedTaskID));
+  if (!enabled) clearIntegratedComparisonError();
 }
 
 function updateIntegratedProxyVisibility() {
@@ -12486,6 +12552,12 @@ function clearIntegratedTargetError() {
   integratedTargetMessage.textContent = ``;
   integratedTargetMessage.classList.remove(`error`);
   integratedTarget.closest(`.target-input-wrap`)?.classList.remove(`invalid`);
+}
+
+function clearIntegratedComparisonError() {
+  integratedCompareMessage.textContent = `域名 A 与 B 必须不同`;
+  integratedCompareMessage.classList.remove(`error`);
+  integratedCompareTarget.closest(`.target-input-wrap`)?.classList.remove(`invalid`);
 }
 
 function clearIntegratedProxyError() {
@@ -12516,6 +12588,9 @@ function integratedConnectionOptions() {
 function setIntegratedControlsDisabled(disabled) {
   integratedTarget.disabled = disabled;
   setSchemeDisabled(integratedScheme, disabled);
+  integratedCompareEnabled.disabled = disabled;
+  integratedCompareTarget.disabled = disabled || !integratedCompareEnabled.checked;
+  setSchemeDisabled(integratedCompareScheme, disabled || !integratedCompareEnabled.checked);
   integratedProxyInput.disabled = disabled;
   document.querySelectorAll(`input[name="integrated-proxy-mode"]`).forEach((input) => {
     input.disabled = disabled;
@@ -12525,6 +12600,8 @@ function setIntegratedControlsDisabled(disabled) {
 function resetIntegratedRun() {
   integratedResult = null;
   integratedResults.hidden = true;
+  integratedDomainComparison.hidden = true;
+  integratedDomainComparison.innerHTML = ``;
   integratedCopyButton.disabled = true;
   integratedOutput.dataset.state = `running`;
   integratedStatus.textContent = `正在并行采集网络证据`;
@@ -12596,6 +12673,22 @@ async function handleIntegratedSubmit(event) {
     integratedTarget.focus();
     return;
   }
+  let compareTargetURL = ``;
+  if (integratedCompareEnabled.checked) {
+    try {
+      compareTargetURL = targetURLFromField(integratedCompareTarget, integratedCompareScheme);
+      const primaryHostname = new URL(targetURL).hostname.toLowerCase().replace(/\.$/, ``);
+      const compareHostname = new URL(compareTargetURL).hostname.toLowerCase().replace(/\.$/, ``);
+      if (compareHostname === primaryHostname)
+        throw Error(`对比域名必须与域名 A 不同`);
+    } catch (error) {
+      integratedCompareMessage.textContent = error.message;
+      integratedCompareMessage.classList.add(`error`);
+      integratedCompareTarget.closest(`.target-input-wrap`)?.classList.add(`invalid`);
+      integratedCompareTarget.focus();
+      return;
+    }
+  }
   let connection;
   try {
     connection = integratedConnectionOptions();
@@ -12615,6 +12708,7 @@ async function handleIntegratedSubmit(event) {
     const result = await runIntegratedDiagnosis({
       task_id: integratedTaskID,
       target_url: targetURL,
+      compare_target_url: compareTargetURL,
       ...connection,
     });
     integratedResult = result;
@@ -12681,6 +12775,56 @@ function integratedFindingEvidence(result, finding) {
     </div>`).join(``);
 }
 
+function integratedComparisonChange(primaryMS, compareMS, comparable) {
+  if (!comparable) return { label: `不计算`, state: `neutral` };
+  const difference = Number(primaryMS) - Number(compareMS);
+  if (Math.abs(difference) < 0.5) return { label: `持平`, state: `neutral` };
+  return difference > 0
+    ? { label: `快 ${Y(Math.abs(difference))}`, state: `better` }
+    : { label: `慢 ${Y(Math.abs(difference))}`, state: `worse` };
+}
+
+function integratedImprovementLabel(value) {
+  const percent = Number(value) || 0;
+  if (Math.abs(percent) < 0.05) return { label: `持平`, state: `neutral` };
+  return percent > 0
+    ? { label: `快 ${Math.abs(percent).toFixed(1)}%`, state: `better` }
+    : { label: `慢 ${Math.abs(percent).toFixed(1)}%`, state: `worse` };
+}
+
+function renderIntegratedDomainComparison(comparison) {
+  const model = buildIntegratedComparisonPresentation(comparison);
+  if (!model) {
+    integratedDomainComparison.hidden = true;
+    integratedDomainComparison.innerHTML = ``;
+    return;
+  }
+  const ttfbChange = model.comparable ? integratedImprovementLabel(model.ttfbImprovementPercent) : null;
+  const totalChange = model.comparable ? integratedImprovementLabel(model.totalImprovementPercent) : null;
+  integratedDomainComparison.innerHTML = `
+    <div class="integrated-comparison-heading">
+      <div><span>REQUEST CHAIN COMPARISON</span><strong>域名请求链路对比</strong></div>
+      <small>A 完整检查 · B 请求链路</small>
+    </div>
+    <div class="integrated-comparison-targets">
+      <article><span>域名 A</span><strong title="${$(model.primaryURL)}">${$(model.primaryHost || model.primaryURL)}</strong><small>完整 5 模块检查</small></article>
+      <article><span>域名 B</span><strong title="${$(model.compareURL)}">${$(model.compareHost || model.compareURL)}</strong><small>HTTP 请求链路</small></article>
+    </div>
+    <div class="integrated-comparison-table" role="table" aria-label="域名请求链路指标对比">
+      <div class="integrated-comparison-row heading" role="row"><span>阶段</span><span>域名 A</span><span>域名 B</span><span>B 相对 A</span></div>
+      ${model.metrics.map((metric) => {
+        const change = integratedComparisonChange(metric.primaryMS, metric.compareMS, model.comparable);
+        return `<div class="integrated-comparison-row" role="row"><strong>${$(metric.label)}</strong><span>${Y(metric.primaryMS)}</span><span>${Y(metric.compareMS)}</span><em class="${change.state}">${$(change.label)}</em></div>`;
+      }).join(``)}
+      <div class="integrated-comparison-row status" role="row"><strong>请求状态</strong><span>${$(model.primaryStatus)}</span><span>${$(model.compareStatus)}</span><em class="${model.comparable ? `better` : `worse`}">${model.comparable ? `可比较` : `未形成结论`}</em></div>
+    </div>
+    ${model.comparable
+      ? `<div class="integrated-comparison-summary"><div><span>TTFB 改善</span><strong class="${ttfbChange.state}">${$(ttfbChange.label)}</strong></div><div><span>总耗时改善</span><strong class="${totalChange.state}">${$(totalChange.label)}</strong></div></div>`
+      : `<div class="integrated-comparison-failure"><strong>请求链路未全部完成</strong><span>${$(model.message || `已保留成功阶段数据，不计算改善结论`)}</span></div>`}
+  `;
+  integratedDomainComparison.hidden = false;
+}
+
 function renderIntegratedResult(result) {
   const presentation = buildIntegratedResultPresentation(result);
   const level = presentation.level;
@@ -12699,6 +12843,7 @@ function renderIntegratedResult(result) {
   Object.entries(components).forEach(([module, component]) =>
     updateIntegratedStage(module, component?.status || `completed`, `检测完成`),
   );
+  renderIntegratedDomainComparison(result.comparison);
 
   integratedFindingsTitle.textContent = presentation.attention.length
     ? `需要处理 · ${presentation.attention.length}`
@@ -12788,6 +12933,18 @@ async function saveIntegratedHistory(result) {
 
 function integratedReport(result) {
   const http = result.http?.diagnosis || {};
+  const comparison = buildIntegratedComparisonPresentation(result.comparison);
+  const comparisonLines = comparison
+    ? [
+        ``, `域名请求链路对比`,
+        `域名 A（完整检查）: ${comparison.primaryURL || `未知`} · ${comparison.primaryStatus}`,
+        `域名 B（请求链路）: ${comparison.compareURL || `未知`} · ${comparison.compareStatus}`,
+        ...comparison.metrics.map((metric) => `${metric.label}: A ${Y(metric.primaryMS)} · B ${Y(metric.compareMS)}`),
+        comparison.comparable
+          ? `B 相对 A: TTFB ${integratedImprovementLabel(comparison.ttfbImprovementPercent).label} · 总耗时 ${integratedImprovementLabel(comparison.totalImprovementPercent).label}`
+          : `B 相对 A: 未形成改善结论 · ${comparison.message || `至少一个请求失败`}`,
+      ]
+    : [];
   const lines = [
     `ATNetool 综合诊断报告`,
     `检测时间: ${result.started_at || `未知`} - ${result.finished_at || `未知`}`,
@@ -12800,6 +12957,7 @@ function integratedReport(result) {
     `端口: ${result.ports?.open_count || 0}/${result.ports?.total_count || 0} 开放`,
     `DNS: ${result.dns?.comparison?.reachable_resolvers || 0}/${result.dns?.total || 0} 解析器可达`,
     `路由: ${result.http?.traceroute?.reached ? `已到达` : `未确认到达`} · ${result.http?.traceroute?.hops?.length || 0} 跳`,
+    ...comparisonLines,
     ``, `分层结论`,
     ...((result.findings || []).map((item) => `[${String(item.status || `info`).toUpperCase()}] ${item.layer}: ${item.title} | ${item.detail}`)),
     ``, `治理顺序`,
@@ -13505,6 +13663,14 @@ function resetCDNComparison() {
   cdnLatencyValues.textContent = `-- → --`;
   cdnLossValues.textContent = `-- → --`;
   cdnSpeedValues.textContent = `-- → --`;
+  cdnRequestChain.dataset.state = `running`;
+  cdnRequestChainStatus.textContent = `正在采样完整 HTTP(S) 请求`;
+  cdnRequestTCPValues.textContent = `-- → --`;
+  cdnRequestTLSValues.textContent = `-- → --`;
+  cdnRequestTTFBValues.textContent = `-- → --`;
+  cdnRequestTotalValues.textContent = `-- → --`;
+  cdnRequestTotalUplift.textContent = `--`;
+  cdnRequestSuccessValues.textContent = `-- → --`;
   cdnComparisonNote.textContent = `完成测试后显示当前 DNS 节点与推荐节点的同口径对比。`;
 }
 
@@ -13543,6 +13709,7 @@ function renderCDNComparison(result) {
     cdnCurrentEvidence.textContent = `当前解析节点未形成有效样本`;
     cdnRecommendedIP.textContent = result?.best_ip || `--`;
     cdnRecommendedEvidence.textContent = formatCDNNodeEvidence(recommended);
+    renderCDNRequestComparison(result?.request_comparison);
     cdnComparisonNote.textContent = path.message || `缺少可比较的当前 DNS 节点，暂不计算提升比例。`;
     return;
   }
@@ -13576,9 +13743,40 @@ function renderCDNComparison(result) {
     cdnSpeedUplift.dataset.trend = `neutral`;
     cdnSpeedValues.textContent = `${current.download_tested ? formatCDNSpeed(current.download_speed_mbps) : `未测速`} → ${recommended.download_tested ? formatCDNSpeed(recommended.download_speed_mbps) : `未测速`}`;
   }
+  renderCDNRequestComparison(result?.request_comparison);
   cdnComparisonNote.textContent = comparison.same_ip
     ? `当前 DNS 节点已是本轮推荐节点，无需修改 hosts。${path.message ? ` ${path.message}` : ``}`
     : path.message || `提升值来自同一轮、同一路径和同一参数下的对照结果。`;
+}
+
+function renderCDNRequestComparison(comparison) {
+  if (!comparison) return;
+  const current = comparison.current || {};
+  const recommended = comparison.recommended || {};
+  const formatPair = (field, formatter = formatCDNLatency) => `${formatter(current[field])} → ${formatter(recommended[field])}`;
+  cdnRequestChain.dataset.state = comparison.comparable ? `ready` : `empty`;
+  cdnRequestChainStatus.textContent = comparison.comparable
+    ? (comparison.same_ip ? `同一节点复测` : `同一出口、同一域名、同口径复测`)
+    : `完整请求对比不可用`;
+  cdnRequestTCPValues.textContent = formatPair(`p50_tcp_ms`);
+  cdnRequestTLSValues.textContent = formatPair(`p50_tls_ms`);
+  cdnRequestTTFBValues.textContent = formatPair(`p50_ttfb_ms`);
+  cdnRequestTotalValues.textContent = formatPair(`p50_total_ms`);
+  cdnRequestSuccessValues.textContent = `${formatCDNPercent(current.success_rate)} → ${formatCDNPercent(recommended.success_rate)}`;
+  if (comparison.comparable) {
+    const improvement = Number(comparison.total_improvement_percent) || 0;
+    cdnRequestTotalUplift.textContent = Math.abs(improvement) < 0.05
+      ? `基本持平`
+      : `${improvement > 0 ? `降低` : `增加`} ${Math.abs(improvement).toFixed(1)}%`;
+    cdnRequestTotalUplift.dataset.trend = improvement >= 0 ? `positive` : `negative`;
+  } else {
+    cdnRequestTotalUplift.textContent = current.message || recommended.message || `至少一侧请求失败`;
+    cdnRequestTotalUplift.dataset.trend = `neutral`;
+  }
+}
+
+function formatCDNPercent(value) {
+  return Number.isFinite(Number(value)) ? `${(Number(value) * 100).toFixed(0)}%` : `--`;
 }
 
 function renderCDNUplift(element, rawValue, positiveLabel, negativeLabel, suffix) {
@@ -13594,7 +13792,12 @@ function renderCDNUplift(element, rawValue, positiveLabel, negativeLabel, suffix
 
 function formatCDNNodeEvidence(node) {
   if (!node?.ip) return `尚未检测`;
-  return [formatCDNLatency(node.average_latency_ms), formatCDNLoss(node.loss_rate), node.download_tested ? formatCDNSpeed(node.download_speed_mbps) : `未测速`, node.cf_colo || ``].filter(Boolean).join(` · `);
+  return [
+    formatCDNLatency(node.average_latency_ms),
+    formatCDNLoss(node.loss_rate),
+    node.download_tested ? formatCDNSpeed(node.download_speed_mbps) : `未测速`,
+    node.cf_colo ? formatCloudflareColo(node.cf_colo, getLocale()) : ``,
+  ].filter(Boolean).join(` · `);
 }
 
 function formatCDNLatency(value) {
@@ -13634,7 +13837,8 @@ function oi(e) {
     state = e.recommended ? `recommended` : e.eligible ? `verified` : received ? `warning` : `failed`,
     label = e.recommended ? `推荐` : e.eligible ? `通过` : e.filter_reason || `不可用`,
     source = { dns: `当前 DNS`, cloudflare_ipv4: `CF IPv4`, cloudflare_ipv6: `CF IPv6`, custom: `自定义` }[e.candidate?.source] || e.candidate?.source || `--`,
-    provider = [e.cdn_provider, e.status_code ? `HTTP ${e.status_code}` : ``, source].filter(Boolean).join(` · `);
+    provider = [e.cdn_provider, e.status_code ? `HTTP ${e.status_code}` : ``, source].filter(Boolean).join(` · `),
+    colo = formatCloudflareColo(e.cf_colo, getLocale());
   return `<div class="cdn-row cdn-${state} ${e.recommended ? `cdn-recommended` : ``}" role="row">
         <strong>${e.rank ? `#${e.rank}` : `--`}</strong>
         <span class="cdn-ip" title="${$(e.candidate?.ip || ``)}">${$(e.candidate?.ip || `--`)}</span>
@@ -13643,9 +13847,16 @@ function oi(e) {
         <span>${sent ? `${(loss * 100).toFixed(0)}%` : `--`}</span>
         <strong>${e.average_latency_ms ? `${Number(e.average_latency_ms).toFixed(1)} ms` : `--`}</strong>
         <span>${e.download_speed_mbps ? `${Number(e.download_speed_mbps).toFixed(2)} MB/s` : `--`}</span>
-        <span>${$(e.cf_colo || `--`)}</span>
+        <span data-cf-colo="${$(e.cf_colo || ``)}" title="${$(colo)}">${$(colo)}</span>
         <em title="${$(provider)}"><i></i>${$(label)}</em>
     </div>`;
+}
+function refreshCloudflareColoLabels() {
+  document.querySelectorAll(`[data-cf-colo]`).forEach((element) => {
+    const label = formatCloudflareColo(element.dataset.cfColo, getLocale());
+    element.textContent = label;
+    element.title = label;
+  });
 }
 function si(e) {
   nn.innerHTML = e.length
@@ -13911,15 +14122,15 @@ function hi(e) {
 async function gi() {
   if (!M?.best_ip) return;
   let e = [
-    `# ATNetool Cloudflare IP selection · ${M.finished_at || new Date().toISOString()}`,
+    `# /etc/hosts · ATNetool Cloudflare IP selection · ${M.finished_at || new Date().toISOString()}`,
     `${M.best_ip} ${M.domain}`,
     `# Edge: ${z(M)?.cf_colo || `unknown`} · Avg: ${Number(z(M)?.average_latency_ms || 0).toFixed(1)} ms · Speed: ${Number(z(M)?.download_speed_mbps || 0).toFixed(2)} MB/s`,
   ].join(`
 `);
   try {
-    (await X(e), Q(`当前域名配置已复制，请验证后再应用`));
+    (await X(e), Q(`/etc/hosts 配置已复制，请验证后再应用`));
   } catch (e) {
-    (console.error(e), Q(`当前域名配置复制失败`));
+    (console.error(e), Q(`/etc/hosts 配置复制失败`));
   }
 }
 async function _i() {
@@ -17660,6 +17871,10 @@ async function So(e) {
   if (r.record_kind === `integrated`) {
     const result = r.integrated || {};
     setTargetField(integratedTarget, integratedScheme, result.target_url || r.target_url || ``);
+    const compareURL = result.comparison?.enabled ? result.comparison?.compare_url || `` : ``;
+    integratedCompareEnabled.checked = Boolean(compareURL);
+    setTargetField(integratedCompareTarget, integratedCompareScheme, compareURL);
+    updateIntegratedComparisonVisibility();
     integratedProxyInput.value = result.http?.diagnosis?.proxy_url || r.proxy_url || ``;
     const mode = [`system`, `direct`, `manual`].includes(r.proxy_mode) ? r.proxy_mode : `system`;
     const radio = document.querySelector(`input[name="integrated-proxy-mode"][value="${mode}"]`);
