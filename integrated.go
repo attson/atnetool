@@ -14,10 +14,11 @@ import (
 const integratedComponentCount = 5
 
 type IntegratedDiagnosisOptions struct {
-	TaskID    string `json:"task_id"`
-	TargetURL string `json:"target_url"`
-	ProxyMode string `json:"proxy_mode"`
-	ProxyURL  string `json:"proxy_url,omitempty"`
+	TaskID           string `json:"task_id"`
+	TargetURL        string `json:"target_url"`
+	CompareTargetURL string `json:"compare_target_url,omitempty"`
+	ProxyMode        string `json:"proxy_mode"`
+	ProxyURL         string `json:"proxy_url,omitempty"`
 }
 
 type IntegratedFinding struct {
@@ -44,27 +45,45 @@ type IntegratedProgress struct {
 	Message  string `json:"message"`
 }
 
+type IntegratedDomainComparison struct {
+	Enabled                 bool       `json:"enabled"`
+	Comparable              bool       `json:"comparable"`
+	PrimaryURL              string     `json:"primary_url,omitempty"`
+	CompareURL              string     `json:"compare_url,omitempty"`
+	Primary                 DiagResult `json:"primary"`
+	Compare                 DiagResult `json:"compare"`
+	DNSDeltaMS              float64    `json:"dns_delta_ms"`
+	TCPDeltaMS              float64    `json:"tcp_delta_ms"`
+	TLSDeltaMS              float64    `json:"tls_delta_ms"`
+	TTFBDeltaMS             float64    `json:"ttfb_delta_ms"`
+	TotalDeltaMS            float64    `json:"total_delta_ms"`
+	TTFBImprovementPercent  float64    `json:"ttfb_improvement_percent"`
+	TotalImprovementPercent float64    `json:"total_improvement_percent"`
+	Message                 string     `json:"message"`
+}
+
 type IntegratedDiagnosisResult struct {
-	SchemaVersion int                     `json:"schema_version"`
-	TaskID        string                  `json:"task_id"`
-	Status        string                  `json:"status"`
-	OverallStatus string                  `json:"overall_status"`
-	Message       string                  `json:"message"`
-	TargetURL     string                  `json:"target_url"`
-	Domain        string                  `json:"domain"`
-	StartedAt     string                  `json:"started_at"`
-	FinishedAt    string                  `json:"finished_at"`
-	DurationMS    int64                   `json:"duration_ms"`
-	Completed     int                     `json:"completed"`
-	Total         int                     `json:"total"`
-	Findings      []IntegratedFinding     `json:"findings"`
-	Remediations  []IntegratedRemediation `json:"remediations"`
-	Baseline      NetworkBaselineResult   `json:"baseline"`
-	DNS           DNSDiagnoseResult       `json:"dns"`
-	Ports         PortTestResult          `json:"ports"`
-	HTTP          DiagnosisTaskResult     `json:"http"`
-	Paths         PathCompareResult       `json:"paths"`
-	Environment   NetworkEnvironment      `json:"environment"`
+	SchemaVersion int                        `json:"schema_version"`
+	TaskID        string                     `json:"task_id"`
+	Status        string                     `json:"status"`
+	OverallStatus string                     `json:"overall_status"`
+	Message       string                     `json:"message"`
+	TargetURL     string                     `json:"target_url"`
+	Domain        string                     `json:"domain"`
+	StartedAt     string                     `json:"started_at"`
+	FinishedAt    string                     `json:"finished_at"`
+	DurationMS    int64                      `json:"duration_ms"`
+	Completed     int                        `json:"completed"`
+	Total         int                        `json:"total"`
+	Findings      []IntegratedFinding        `json:"findings"`
+	Remediations  []IntegratedRemediation    `json:"remediations"`
+	Baseline      NetworkBaselineResult      `json:"baseline"`
+	DNS           DNSDiagnoseResult          `json:"dns"`
+	Ports         PortTestResult             `json:"ports"`
+	HTTP          DiagnosisTaskResult        `json:"http"`
+	Paths         PathCompareResult          `json:"paths"`
+	Comparison    IntegratedDomainComparison `json:"comparison"`
+	Environment   NetworkEnvironment         `json:"environment"`
 }
 
 func (a *App) RunIntegratedDiagnosis(options IntegratedDiagnosisOptions) IntegratedDiagnosisResult {
@@ -91,6 +110,19 @@ func (a *App) RunIntegratedDiagnosis(options IntegratedDiagnosisOptions) Integra
 	}
 	result.TargetURL = parsed.String()
 	result.Domain = parsed.Hostname()
+	compareTarget := strings.TrimSpace(options.CompareTargetURL)
+	if compareTarget != "" {
+		compareParsed, compareErr := validateHTTPURL(compareTarget)
+		if compareErr != nil || equalIntegratedHostname(compareParsed.Hostname(), result.Domain) {
+			result.Status = "failed"
+			result.OverallStatus = "critical"
+			result.Message = "对比域名配置有误或与主域名相同"
+			result.FinishedAt = time.Now().Format(time.RFC3339)
+			return result
+		}
+		compareTarget = compareParsed.String()
+		result.Comparison = IntegratedDomainComparison{Enabled: true, PrimaryURL: result.TargetURL, CompareURL: compareTarget}
+	}
 
 	ctx, cancel := context.WithCancel(a.baseContext())
 	if !a.registerTask(taskID, cancel) {
@@ -121,6 +153,12 @@ func (a *App) RunIntegratedDiagnosis(options IntegratedDiagnosisOptions) Integra
 		message string
 	}
 	completed := make(chan componentDone, integratedComponentCount)
+	comparisonDone := make(chan DiagResult, 1)
+	if result.Comparison.Enabled {
+		go func() {
+			comparisonDone <- a.runDiagnose(ctx, DiagOptions{TargetURL: compareTarget, ProxyMode: options.ProxyMode, ProxyURL: options.ProxyURL})
+		}()
+	}
 	go func() {
 		result.Baseline = a.RunNetworkBaseline(NetworkBaselineOptions{TaskID: childIDs["baseline"], TargetHost: result.Domain})
 		completed <- componentDone{module: "baseline", status: result.Baseline.Status, message: result.Baseline.Message}
@@ -154,6 +192,9 @@ func (a *App) RunIntegratedDiagnosis(options IntegratedDiagnosisOptions) Integra
 			Status: component.status, Message: component.message,
 		})
 	}
+	if result.Comparison.Enabled {
+		result.Comparison = buildIntegratedDomainComparison(result.TargetURL, result.HTTP.Diagnosis, compareTarget, <-comparisonDone)
+	}
 	result.Environment = result.HTTP.Environment
 	result.Findings, result.Remediations, result.OverallStatus = buildIntegratedAssessment(result)
 	if ctx.Err() != nil {
@@ -166,6 +207,38 @@ func (a *App) RunIntegratedDiagnosis(options IntegratedDiagnosisOptions) Integra
 	result.DurationMS = durationMS(time.Since(started))
 	result.FinishedAt = time.Now().Format(time.RFC3339)
 	return result
+}
+
+func equalIntegratedHostname(left, right string) bool {
+	normalise := func(hostname string) string {
+		return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(hostname)), ".")
+	}
+	return normalise(left) == normalise(right)
+}
+
+func buildIntegratedDomainComparison(primaryURL string, primary DiagResult, compareURL string, compare DiagResult) IntegratedDomainComparison {
+	comparison := IntegratedDomainComparison{
+		Enabled: true, PrimaryURL: primaryURL, CompareURL: compareURL,
+		Primary: primary, Compare: compare,
+	}
+	comparison.Comparable = primary.Success && compare.Success
+	if comparison.Comparable {
+		comparison.DNSDeltaMS = float64(primary.DNSLookupMS - compare.DNSLookupMS)
+		comparison.TCPDeltaMS = float64(primary.TCPConnectMS - compare.TCPConnectMS)
+		comparison.TLSDeltaMS = float64(primary.TLSHandshakeMS - compare.TLSHandshakeMS)
+		comparison.TTFBDeltaMS = float64(primary.TTFBMS - compare.TTFBMS)
+		comparison.TotalDeltaMS = float64(primary.TotalMS - compare.TotalMS)
+		if primary.TTFBMS > 0 {
+			comparison.TTFBImprovementPercent = comparison.TTFBDeltaMS / float64(primary.TTFBMS) * 100
+		}
+		if primary.TotalMS > 0 {
+			comparison.TotalImprovementPercent = comparison.TotalDeltaMS / float64(primary.TotalMS) * 100
+		}
+		comparison.Message = "两个域名已使用相同连接策略完成 HTTP 请求链路对比"
+	} else {
+		comparison.Message = "至少一个域名请求失败，保留分阶段证据但不计算改善结论"
+	}
+	return comparison
 }
 
 func (a *App) cancelIntegratedChildren(ctx context.Context, finished <-chan struct{}, childIDs map[string]string) {

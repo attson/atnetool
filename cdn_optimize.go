@@ -24,14 +24,15 @@ import (
 )
 
 const (
-	defaultCDNWorkers  = 200
-	maxCDNWorkers      = 1000
-	defaultCDNSamples  = 4
-	maxCDNSamples      = 10
-	maxCDNCandidates   = 2000000
-	cdnResponseLimit   = 4 << 10
-	cdnProbeTimeout    = 1500 * time.Millisecond
-	defaultDownloadURL = "https://speed.cloudflare.com/__down?bytes=200000000"
+	defaultCDNWorkers        = 200
+	maxCDNWorkers            = 1000
+	defaultCDNSamples        = 4
+	maxCDNSamples            = 10
+	maxCDNCandidates         = 2000000
+	cdnResponseLimit         = 4 << 10
+	cdnProbeTimeout          = 1500 * time.Millisecond
+	cdnRequestCompareTimeout = 20 * time.Second
+	defaultDownloadURL       = "https://speed.cloudflare.com/__down?bytes=200000000"
 )
 
 var cloudflareIPv4Ranges = []string{
@@ -162,6 +163,39 @@ type CDNOptimizeComparison struct {
 	SpeedMultiplier           float64           `json:"speed_multiplier"`
 }
 
+// CDNRequestNode contains the same full HTTP(S) request-chain metrics for one
+// edge IP. Unlike CDNOptimizeComparison, these values are collected after
+// ranking with the target hostname/SNI and a real HTTP request.
+type CDNRequestNode struct {
+	IP           string  `json:"ip,omitempty"`
+	SampleCount  int     `json:"sample_count"`
+	SuccessCount int     `json:"success_count"`
+	SuccessRate  float64 `json:"success_rate"`
+	P50TCPMS     int64   `json:"p50_tcp_ms"`
+	P50TLSMS     int64   `json:"p50_tls_ms"`
+	P50TTFBMS    int64   `json:"p50_ttfb_ms"`
+	P50TotalMS   int64   `json:"p50_total_ms"`
+	P95TotalMS   int64   `json:"p95_total_ms"`
+	StatusCode   int     `json:"status_code,omitempty"`
+	CFRay        string  `json:"cf_ray,omitempty"`
+	CFColo       string  `json:"cf_colo,omitempty"`
+	CDNProvider  string  `json:"cdn_provider,omitempty"`
+	Message      string  `json:"message,omitempty"`
+}
+
+type CDNRequestComparison struct {
+	Comparable              bool           `json:"comparable"`
+	SameIP                  bool           `json:"same_ip"`
+	Current                 CDNRequestNode `json:"current"`
+	Recommended             CDNRequestNode `json:"recommended"`
+	TCPDeltaMS              float64        `json:"tcp_delta_ms"`
+	TLSDeltaMS              float64        `json:"tls_delta_ms"`
+	TTFBDeltaMS             float64        `json:"ttfb_delta_ms"`
+	TotalDeltaMS            float64        `json:"total_delta_ms"`
+	TTFBImprovementPercent  float64        `json:"ttfb_improvement_percent"`
+	TotalImprovementPercent float64        `json:"total_improvement_percent"`
+}
+
 type CDNPathEvidence struct {
 	Mode                   string   `json:"mode"`
 	SystemProxyConfigured  bool     `json:"system_proxy_configured"`
@@ -233,6 +267,7 @@ type CDNOptimizeResult struct {
 	ImprovementPercent  float64               `json:"improvement_percent"`
 	P95Improvement      float64               `json:"p95_improvement_percent"`
 	Comparison          CDNOptimizeComparison `json:"comparison"`
+	RequestComparison   CDNRequestComparison  `json:"request_comparison"`
 	PathEvidence        CDNPathEvidence       `json:"path_evidence"`
 	ValidationScope     string                `json:"validation_scope"`
 	TargetValidated     bool                  `json:"target_validated"`
@@ -437,6 +472,12 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 		runCDNDownloadStage(baseContext, a, &result, settings)
 	}
 	finaliseCDNRanking(&result)
+	if baseContext.Err() == nil && result.BestIP != "" {
+		a.emitCDNOptimizeProgress(CDNOptimizeProgress{
+			TaskID: taskID, Stage: "request_comparison", Message: "正在对比当前节点与推荐节点的完整 HTTPS 请求链路", Complete: 0, Total: 1,
+		})
+		compareCDNRequestChains(baseContext, &result, targetURL, domain, settings.Port, boundedCDNSamples(options.Samples), settings.UpstreamProxy)
+	}
 	if baseContext.Err() == nil && result.BestIP != "" {
 		a.emitCDNOptimizeProgress(CDNOptimizeProgress{
 			TaskID: taskID, Stage: "recommendation_validation", Message: "正在验证推荐 IP 与目标域名的兼容性", Complete: 0, Total: 1,
@@ -1450,6 +1491,96 @@ func validateCDNRecommendation(ctx context.Context, result *CDNOptimizeResult, t
 	}
 	sample := runCDNProbeWithRoute(ctx, targetURL, domain, result.BestIP, 1, port, 5*time.Second, false, upstreamProxy)
 	applyCDNRecommendationValidation(result, sample)
+}
+
+func compareCDNRequestChains(parent context.Context, result *CDNOptimizeResult, targetURL, domain string, port, samples int, upstreamProxy *url.URL) {
+	if result == nil || strings.TrimSpace(result.BaselineIP) == "" || strings.TrimSpace(result.BestIP) == "" {
+		return
+	}
+	if samples <= 0 {
+		samples = defaultCDNSamples
+	}
+	compareTimeout := cdnRequestCompareTimeout
+	minimumTimeout := time.Duration(samples*2)*cdnProbeTimeout + 5*time.Second
+	if minimumTimeout > compareTimeout {
+		compareTimeout = minimumTimeout
+	}
+	ctx, cancel := context.WithTimeout(parent, compareTimeout)
+	defer cancel()
+
+	current := runCDNFullRequestProbe(ctx, targetURL, domain, result.BaselineIP, samples, port, upstreamProxy)
+	recommended := current
+	if result.BestIP != result.BaselineIP {
+		recommended = runCDNFullRequestProbe(ctx, targetURL, domain, result.BestIP, samples, port, upstreamProxy)
+	}
+	result.RequestComparison = buildCDNRequestComparison(current, recommended)
+}
+
+func runCDNFullRequestProbe(parent context.Context, targetURL, domain, candidateIP string, samples, port int, upstreamProxy *url.URL) CDNProbeResult {
+	if samples <= 0 {
+		samples = defaultCDNSamples
+	}
+	probe := CDNProbeResult{
+		Candidate:   CDNCandidate{IP: candidateIP},
+		SampleCount: samples,
+		Sent:        samples,
+	}
+	for sequence := 1; sequence <= samples; sequence++ {
+		if parent.Err() != nil {
+			break
+		}
+		probe.Samples = append(probe.Samples, runCDNProbeWithRoute(parent, targetURL, domain, candidateIP, sequence, port, cdnProbeTimeout, true, upstreamProxy))
+	}
+	finaliseCDNProbe(&probe)
+	probe.Received = probe.SuccessCount
+	if probe.Sent > 0 {
+		probe.LossRate = float64(probe.Sent-probe.Received) / float64(probe.Sent)
+	}
+	if len(probe.Samples) > 0 {
+		for _, sample := range probe.Samples {
+			if sample.LocalAddress != "" || sample.RemoteAddress != "" {
+				probe.LocalAddress, probe.RemoteAddress = sample.LocalAddress, sample.RemoteAddress
+				break
+			}
+		}
+	}
+	return probe
+}
+
+func buildCDNRequestComparison(current, recommended CDNProbeResult) CDNRequestComparison {
+	comparison := CDNRequestComparison{
+		SameIP:  current.Candidate.IP != "" && current.Candidate.IP == recommended.Candidate.IP,
+		Current: cdnRequestNode(current), Recommended: cdnRequestNode(recommended),
+	}
+	comparison.Comparable = current.SuccessCount > 0 && recommended.SuccessCount > 0
+	comparison.TCPDeltaMS = float64(current.P50TCPMS - recommended.P50TCPMS)
+	comparison.TLSDeltaMS = float64(current.P50TLSMS - recommended.P50TLSMS)
+	comparison.TTFBDeltaMS = float64(current.P50TTFBMS - recommended.P50TTFBMS)
+	comparison.TotalDeltaMS = float64(current.P50TotalMS - recommended.P50TotalMS)
+	if current.P50TTFBMS > 0 {
+		comparison.TTFBImprovementPercent = comparison.TTFBDeltaMS / float64(current.P50TTFBMS) * 100
+	}
+	if current.P50TotalMS > 0 {
+		comparison.TotalImprovementPercent = comparison.TotalDeltaMS / float64(current.P50TotalMS) * 100
+	}
+	return comparison
+}
+
+func cdnRequestNode(probe CDNProbeResult) CDNRequestNode {
+	message := ""
+	if probe.SuccessCount == 0 && len(probe.Samples) > 0 {
+		message = probe.Samples[len(probe.Samples)-1].Message
+		if probe.Samples[len(probe.Samples)-1].Error != "" {
+			message = probe.Samples[len(probe.Samples)-1].Error
+		}
+	}
+	return CDNRequestNode{
+		IP: probe.Candidate.IP, SampleCount: probe.SampleCount, SuccessCount: probe.SuccessCount,
+		SuccessRate: probe.SuccessRate, P50TCPMS: probe.P50TCPMS, P50TLSMS: probe.P50TLSMS,
+		P50TTFBMS: probe.P50TTFBMS, P50TotalMS: probe.P50TotalMS, P95TotalMS: probe.P95TotalMS,
+		StatusCode: probe.StatusCode, CFRay: probe.CFRay, CFColo: probe.CFColo,
+		CDNProvider: probe.CDNProvider, Message: message,
+	}
 }
 
 func applyCDNRecommendationValidation(result *CDNOptimizeResult, sample CDNProbeSample) {

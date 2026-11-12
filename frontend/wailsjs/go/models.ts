@@ -572,6 +572,92 @@ export namespace main {
 	        this.message = source["message"];
 	    }
 	}
+	export class CDNRequestNode {
+	    ip?: string;
+	    sample_count: number;
+	    success_count: number;
+	    success_rate: number;
+	    p50_tcp_ms: number;
+	    p50_tls_ms: number;
+	    p50_ttfb_ms: number;
+	    p50_total_ms: number;
+	    p95_total_ms: number;
+	    status_code?: number;
+	    cf_ray?: string;
+	    cf_colo?: string;
+	    cdn_provider?: string;
+	    message?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new CDNRequestNode(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ip = source["ip"];
+	        this.sample_count = source["sample_count"];
+	        this.success_count = source["success_count"];
+	        this.success_rate = source["success_rate"];
+	        this.p50_tcp_ms = source["p50_tcp_ms"];
+	        this.p50_tls_ms = source["p50_tls_ms"];
+	        this.p50_ttfb_ms = source["p50_ttfb_ms"];
+	        this.p50_total_ms = source["p50_total_ms"];
+	        this.p95_total_ms = source["p95_total_ms"];
+	        this.status_code = source["status_code"];
+	        this.cf_ray = source["cf_ray"];
+	        this.cf_colo = source["cf_colo"];
+	        this.cdn_provider = source["cdn_provider"];
+	        this.message = source["message"];
+	    }
+	}
+	export class CDNRequestComparison {
+	    comparable: boolean;
+	    same_ip: boolean;
+	    current: CDNRequestNode;
+	    recommended: CDNRequestNode;
+	    tcp_delta_ms: number;
+	    tls_delta_ms: number;
+	    ttfb_delta_ms: number;
+	    total_delta_ms: number;
+	    ttfb_improvement_percent: number;
+	    total_improvement_percent: number;
+
+	    static createFrom(source: any = {}) {
+	        return new CDNRequestComparison(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.comparable = source["comparable"];
+	        this.same_ip = source["same_ip"];
+	        this.current = this.convertValues(source["current"], CDNRequestNode);
+	        this.recommended = this.convertValues(source["recommended"], CDNRequestNode);
+	        this.tcp_delta_ms = source["tcp_delta_ms"];
+	        this.tls_delta_ms = source["tls_delta_ms"];
+	        this.ttfb_delta_ms = source["ttfb_delta_ms"];
+	        this.total_delta_ms = source["total_delta_ms"];
+	        this.ttfb_improvement_percent = source["ttfb_improvement_percent"];
+	        this.total_improvement_percent = source["total_improvement_percent"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class CDNOptimizeResult {
 	    schema_version: number;
 	    task_id: string;
@@ -605,6 +691,7 @@ export namespace main {
 	    improvement_percent: number;
 	    p95_improvement_percent: number;
 	    comparison: CDNOptimizeComparison;
+	    request_comparison: CDNRequestComparison;
 	    path_evidence: CDNPathEvidence;
 	    validation_scope: string;
 	    target_validated: boolean;
@@ -658,6 +745,7 @@ export namespace main {
 	        this.improvement_percent = source["improvement_percent"];
 	        this.p95_improvement_percent = source["p95_improvement_percent"];
 	        this.comparison = this.convertValues(source["comparison"], CDNOptimizeComparison);
+	        this.request_comparison = this.convertValues(source["request_comparison"], CDNRequestComparison);
 	        this.path_evidence = this.convertValues(source["path_evidence"], CDNPathEvidence);
 	        this.validation_scope = source["validation_scope"];
 	        this.target_validated = source["target_validated"];
@@ -692,6 +780,8 @@ export namespace main {
 		    return a;
 		}
 	}
+
+
 
 
 
@@ -1349,6 +1439,62 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class IntegratedDomainComparison {
+	    enabled: boolean;
+	    comparable: boolean;
+	    primary_url?: string;
+	    compare_url?: string;
+	    primary: DiagResult;
+	    compare: DiagResult;
+	    dns_delta_ms: number;
+	    tcp_delta_ms: number;
+	    tls_delta_ms: number;
+	    ttfb_delta_ms: number;
+	    total_delta_ms: number;
+	    ttfb_improvement_percent: number;
+	    total_improvement_percent: number;
+	    message: string;
+
+	    static createFrom(source: any = {}) {
+	        return new IntegratedDomainComparison(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.comparable = source["comparable"];
+	        this.primary_url = source["primary_url"];
+	        this.compare_url = source["compare_url"];
+	        this.primary = this.convertValues(source["primary"], DiagResult);
+	        this.compare = this.convertValues(source["compare"], DiagResult);
+	        this.dns_delta_ms = source["dns_delta_ms"];
+	        this.tcp_delta_ms = source["tcp_delta_ms"];
+	        this.tls_delta_ms = source["tls_delta_ms"];
+	        this.ttfb_delta_ms = source["ttfb_delta_ms"];
+	        this.total_delta_ms = source["total_delta_ms"];
+	        this.ttfb_improvement_percent = source["ttfb_improvement_percent"];
+	        this.total_improvement_percent = source["total_improvement_percent"];
+	        this.message = source["message"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class IntegratedRemediation {
 	    priority: number;
 	    action: string;
@@ -1407,6 +1553,7 @@ export namespace main {
 	    ports: PortTestResult;
 	    http: DiagnosisTaskResult;
 	    paths: PathCompareResult;
+	    comparison: IntegratedDomainComparison;
 	    environment: NetworkEnvironment;
 
 	    static createFrom(source: any = {}) {
@@ -1434,6 +1581,7 @@ export namespace main {
 	        this.ports = this.convertValues(source["ports"], PortTestResult);
 	        this.http = this.convertValues(source["http"], DiagnosisTaskResult);
 	        this.paths = this.convertValues(source["paths"], PathCompareResult);
+	        this.comparison = this.convertValues(source["comparison"], IntegratedDomainComparison);
 	        this.environment = this.convertValues(source["environment"], NetworkEnvironment);
 	    }
 
@@ -2322,6 +2470,7 @@ export namespace main {
 	export class IntegratedDiagnosisOptions {
 	    task_id: string;
 	    target_url: string;
+	    compare_target_url?: string;
 	    proxy_mode: string;
 	    proxy_url?: string;
 
@@ -2333,10 +2482,12 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.task_id = source["task_id"];
 	        this.target_url = source["target_url"];
+	        this.compare_target_url = source["compare_target_url"];
 	        this.proxy_mode = source["proxy_mode"];
 	        this.proxy_url = source["proxy_url"];
 	    }
 	}
+
 
 
 

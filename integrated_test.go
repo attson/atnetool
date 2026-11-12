@@ -1,6 +1,82 @@
 package main
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
+
+func TestBuildIntegratedDomainComparisonReportsImprovement(t *testing.T) {
+	primary := DiagResult{
+		Success: true, StatusCode: 200,
+		DNSLookupMS: 40, TCPConnectMS: 80, TLSHandshakeMS: 60, TTFBMS: 200, TotalMS: 500,
+	}
+	compare := DiagResult{
+		Success: true, StatusCode: 204,
+		DNSLookupMS: 10, TCPConnectMS: 50, TLSHandshakeMS: 40, TTFBMS: 100, TotalMS: 300,
+	}
+
+	result := buildIntegratedDomainComparison("https://a.example/", primary, "https://b.example/", compare)
+
+	if !result.Enabled || !result.Comparable {
+		t.Fatalf("comparison flags = enabled %v, comparable %v", result.Enabled, result.Comparable)
+	}
+	if result.DNSDeltaMS != 30 || result.TCPDeltaMS != 30 || result.TLSDeltaMS != 20 || result.TTFBDeltaMS != 100 || result.TotalDeltaMS != 200 {
+		t.Fatalf("comparison deltas = %+v", result)
+	}
+	if math.Abs(result.TTFBImprovementPercent-50) > 0.001 || math.Abs(result.TotalImprovementPercent-40) > 0.001 {
+		t.Fatalf("comparison improvements = TTFB %.3f%%, total %.3f%%", result.TTFBImprovementPercent, result.TotalImprovementPercent)
+	}
+	if result.Primary.StatusCode != 200 || result.Compare.StatusCode != 204 {
+		t.Fatalf("comparison evidence was not retained: %+v", result)
+	}
+}
+
+func TestBuildIntegratedDomainComparisonDoesNotClaimImprovementAfterFailure(t *testing.T) {
+	primary := DiagResult{Success: true, StatusCode: 200, TTFBMS: 200, TotalMS: 500}
+	compare := DiagResult{Success: false, FailedStage: "tls", TLSHandshakeMS: 35, TotalMS: 120, Message: "TLS 握手失败"}
+
+	result := buildIntegratedDomainComparison("https://a.example/", primary, "https://b.example/", compare)
+
+	if result.Comparable {
+		t.Fatal("a failed request must not be comparable")
+	}
+	if result.TTFBDeltaMS != 0 || result.TotalDeltaMS != 0 || result.TTFBImprovementPercent != 0 || result.TotalImprovementPercent != 0 {
+		t.Fatalf("failed comparison claimed an improvement: %+v", result)
+	}
+	if result.Primary.StatusCode != 200 || result.Compare.FailedStage != "tls" || result.Compare.TLSHandshakeMS != 35 {
+		t.Fatalf("failed comparison evidence was not retained: %+v", result)
+	}
+}
+
+func TestIntegratedDiagnosisResultWithoutComparisonKeepsComparisonDisabled(t *testing.T) {
+	result := IntegratedDiagnosisResult{}
+	if result.Comparison.Enabled || result.Comparison.Comparable {
+		t.Fatalf("comparison should be opt-in: %+v", result.Comparison)
+	}
+}
+
+func TestRunIntegratedDiagnosisRejectsInvalidComparisonTarget(t *testing.T) {
+	tests := []struct {
+		name    string
+		compare string
+	}{
+		{name: "invalid URL", compare: "://bad"},
+		{name: "same hostname", compare: "http://EXAMPLE.com/other"},
+		{name: "same fully qualified hostname", compare: "https://example.com./other"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := NewApp().RunIntegratedDiagnosis(IntegratedDiagnosisOptions{
+				TargetURL:        "https://example.com/path",
+				CompareTargetURL: test.compare,
+			})
+			if result.Status != "failed" || result.Completed != 0 || result.Message != "对比域名配置有误或与主域名相同" {
+				t.Fatalf("invalid comparison result = %+v", result)
+			}
+		})
+	}
+}
 
 func TestBuildIntegratedAssessmentHealthy(t *testing.T) {
 	result := IntegratedDiagnosisResult{

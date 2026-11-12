@@ -44,6 +44,52 @@ export function integratedResultLevel(status) {
   return 'neutral';
 }
 
+function comparisonHost(value) {
+  try {
+    return new URL(String(value || '')).hostname || String(value || '');
+  } catch {
+    return String(value || '');
+  }
+}
+
+function comparisonRequestStatus(result = {}) {
+  if (result.success) return result.status_code ? `HTTP ${result.status_code}` : '请求成功';
+  const stage = String(result.failed_stage || '').trim().toUpperCase();
+  return stage ? `${stage} 阶段失败` : '请求失败';
+}
+
+export function buildIntegratedComparisonPresentation(comparison = {}) {
+  if (!comparison?.enabled) return null;
+  const primary = comparison.primary || {};
+  const compare = comparison.compare || {};
+  const comparable = Boolean(comparison.comparable);
+  const metrics = [
+    ['dns', 'DNS', 'dns_lookup_ms'],
+    ['tcp', 'TCP', 'tcp_connect_ms'],
+    ['tls', 'TLS', 'tls_handshake_ms'],
+    ['ttfb', 'TTFB', 'ttfb_ms'],
+    ['total', '总耗时', 'total_ms'],
+  ].map(([key, label, field]) => ({
+    key,
+    label,
+    primaryMS: Number(primary[field]) || 0,
+    compareMS: Number(compare[field]) || 0,
+  }));
+  return {
+    comparable,
+    primaryURL: String(comparison.primary_url || primary.target_url || ''),
+    compareURL: String(comparison.compare_url || compare.target_url || ''),
+    primaryHost: comparisonHost(comparison.primary_url || primary.target_url),
+    compareHost: comparisonHost(comparison.compare_url || compare.target_url),
+    primaryStatus: comparisonRequestStatus(primary),
+    compareStatus: comparisonRequestStatus(compare),
+    metrics,
+    ttfbImprovementPercent: comparable ? Number(comparison.ttfb_improvement_percent) || 0 : null,
+    totalImprovementPercent: comparable ? Number(comparison.total_improvement_percent) || 0 : null,
+    message: String(comparison.message || ''),
+  };
+}
+
 export function remediationDestination(remediation) {
   return DESTINATIONS[remediation?.action]
     || MODULE_DESTINATIONS[remediation?.module]
