@@ -85,57 +85,59 @@ type CDNCandidate struct {
 }
 
 type CDNProbeSample struct {
-	Sequence       int    `json:"sequence"`
-	Success        bool   `json:"success"`
-	Message        string `json:"message"`
-	FailedStage    string `json:"failed_stage,omitempty"`
-	Error          string `json:"error,omitempty"`
-	TCPConnectMS   int64  `json:"tcp_connect_ms"`
-	TLSHandshakeMS int64  `json:"tls_handshake_ms"`
-	TTFBMS         int64  `json:"ttfb_ms"`
-	TotalMS        int64  `json:"total_ms"`
-	StatusCode     int    `json:"status_code"`
-	HTTPProtocol   string `json:"http_protocol,omitempty"`
-	CFRay          string `json:"cf_ray,omitempty"`
-	CFColo         string `json:"cf_colo,omitempty"`
-	CDNProvider    string `json:"cdn_provider,omitempty"`
-	LocalAddress   string `json:"local_address,omitempty"`
-	RemoteAddress  string `json:"remote_address,omitempty"`
+	Sequence            int    `json:"sequence"`
+	Success             bool   `json:"success"`
+	Message             string `json:"message"`
+	FailedStage         string `json:"failed_stage,omitempty"`
+	Error               string `json:"error,omitempty"`
+	TCPConnectMS        int64  `json:"tcp_connect_ms"`
+	TLSHandshakeMS      int64  `json:"tls_handshake_ms"`
+	TTFBMS              int64  `json:"ttfb_ms"`
+	TotalMS             int64  `json:"total_ms"`
+	StatusCode          int    `json:"status_code"`
+	CloudflareErrorCode int    `json:"cloudflare_error_code,omitempty"`
+	HTTPProtocol        string `json:"http_protocol,omitempty"`
+	CFRay               string `json:"cf_ray,omitempty"`
+	CFColo              string `json:"cf_colo,omitempty"`
+	CDNProvider         string `json:"cdn_provider,omitempty"`
+	LocalAddress        string `json:"local_address,omitempty"`
+	RemoteAddress       string `json:"remote_address,omitempty"`
 }
 
 type CDNProbeResult struct {
-	Index              int              `json:"index"`
-	Candidate          CDNCandidate     `json:"candidate"`
-	Samples            []CDNProbeSample `json:"samples"`
-	SampleCount        int              `json:"sample_count"`
-	SuccessCount       int              `json:"success_count"`
-	SuccessRate        float64          `json:"success_rate"`
-	P50TCPMS           int64            `json:"p50_tcp_ms"`
-	P50TLSMS           int64            `json:"p50_tls_ms"`
-	P50TTFBMS          int64            `json:"p50_ttfb_ms"`
-	P50TotalMS         int64            `json:"p50_total_ms"`
-	P95TotalMS         int64            `json:"p95_total_ms"`
-	JitterMS           float64          `json:"jitter_ms"`
-	StatusCode         int              `json:"status_code"`
-	CFRay              string           `json:"cf_ray,omitempty"`
-	CFColo             string           `json:"cf_colo,omitempty"`
-	VerifiedCloudflare bool             `json:"verified_cloudflare"`
-	Rank               int              `json:"rank,omitempty"`
-	Recommended        bool             `json:"recommended"`
-	Sent               int              `json:"sent"`
-	Received           int              `json:"received"`
-	LossRate           float64          `json:"loss_rate"`
-	AverageLatencyMS   float64          `json:"average_latency_ms"`
-	DownloadSpeedMBps  float64          `json:"download_speed_mbps"`
-	DownloadBytes      int64            `json:"download_bytes"`
-	DownloadDurationMS int64            `json:"download_duration_ms"`
-	DownloadTested     bool             `json:"download_tested"`
-	CDNProvider        string           `json:"cdn_provider,omitempty"`
-	Eligible           bool             `json:"eligible"`
-	FilterReason       string           `json:"filter_reason,omitempty"`
-	DebugErrors        []string         `json:"debug_errors,omitempty"`
-	LocalAddress       string           `json:"local_address,omitempty"`
-	RemoteAddress      string           `json:"remote_address,omitempty"`
+	Index               int              `json:"index"`
+	Candidate           CDNCandidate     `json:"candidate"`
+	Samples             []CDNProbeSample `json:"samples"`
+	SampleCount         int              `json:"sample_count"`
+	SuccessCount        int              `json:"success_count"`
+	SuccessRate         float64          `json:"success_rate"`
+	P50TCPMS            int64            `json:"p50_tcp_ms"`
+	P50TLSMS            int64            `json:"p50_tls_ms"`
+	P50TTFBMS           int64            `json:"p50_ttfb_ms"`
+	P50TotalMS          int64            `json:"p50_total_ms"`
+	P95TotalMS          int64            `json:"p95_total_ms"`
+	JitterMS            float64          `json:"jitter_ms"`
+	StatusCode          int              `json:"status_code"`
+	CloudflareErrorCode int              `json:"cloudflare_error_code,omitempty"`
+	CFRay               string           `json:"cf_ray,omitempty"`
+	CFColo              string           `json:"cf_colo,omitempty"`
+	VerifiedCloudflare  bool             `json:"verified_cloudflare"`
+	Rank                int              `json:"rank,omitempty"`
+	Recommended         bool             `json:"recommended"`
+	Sent                int              `json:"sent"`
+	Received            int              `json:"received"`
+	LossRate            float64          `json:"loss_rate"`
+	AverageLatencyMS    float64          `json:"average_latency_ms"`
+	DownloadSpeedMBps   float64          `json:"download_speed_mbps"`
+	DownloadBytes       int64            `json:"download_bytes"`
+	DownloadDurationMS  int64            `json:"download_duration_ms"`
+	DownloadTested      bool             `json:"download_tested"`
+	CDNProvider         string           `json:"cdn_provider,omitempty"`
+	Eligible            bool             `json:"eligible"`
+	FilterReason        string           `json:"filter_reason,omitempty"`
+	DebugErrors         []string         `json:"debug_errors,omitempty"`
+	LocalAddress        string           `json:"local_address,omitempty"`
+	RemoteAddress       string           `json:"remote_address,omitempty"`
 }
 
 type CDNNodeComparison struct {
@@ -457,6 +459,9 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 			result.ResponsiveCount++
 		} else {
 			result.FailedCount++
+			if probe.CloudflareErrorCode > 0 {
+				result.Results = append(result.Results, probe)
+			}
 		}
 		if probe.VerifiedCloudflare {
 			result.VerifiedCount++
@@ -474,15 +479,15 @@ func (a *App) RunCDNOptimize(options CDNOptimizeOptions) CDNOptimizeResult {
 	finaliseCDNRanking(&result)
 	if baseContext.Err() == nil && result.BestIP != "" {
 		a.emitCDNOptimizeProgress(CDNOptimizeProgress{
-			TaskID: taskID, Stage: "request_comparison", Message: "正在对比当前节点与推荐节点的完整 HTTPS 请求链路", Complete: 0, Total: 1,
+			TaskID: taskID, Stage: "recommendation_validation", Message: "正在验证推荐 IP 与目标域名的兼容性", Complete: 0, Total: 1,
 		})
-		compareCDNRequestChains(baseContext, &result, targetURL, domain, settings.Port, boundedCDNSamples(options.Samples), settings.UpstreamProxy)
+		validateCDNRecommendations(baseContext, &result, targetURL, domain, settings)
 	}
 	if baseContext.Err() == nil && result.BestIP != "" {
 		a.emitCDNOptimizeProgress(CDNOptimizeProgress{
-			TaskID: taskID, Stage: "recommendation_validation", Message: "正在验证推荐 IP 与目标域名的兼容性", Complete: 0, Total: 1,
+			TaskID: taskID, Stage: "request_comparison", Message: "正在对比当前节点与推荐节点的完整 HTTPS 请求链路", Complete: 0, Total: 1,
 		})
-		validateCDNRecommendation(baseContext, &result, targetURL, domain, settings.Port, settings.UpstreamProxy)
+		compareCDNRequestChains(baseContext, &result, targetURL, domain, settings.Port, boundedCDNSamples(options.Samples), settings.UpstreamProxy)
 	}
 	if baseContext.Err() != nil {
 		result.Status = "cancelled"
@@ -954,12 +959,23 @@ func runCDNTCPingWithProxy(parent context.Context, candidateIP string, sequence,
 
 func runCDNHTTPing(parent context.Context, targetURL, domain, candidateIP string, sequence int, settings cdnOptimizeSettings) CDNProbeSample {
 	sample := runCDNProbeWithRoute(parent, targetURL, domain, candidateIP, sequence, settings.Port, cdnProbeTimeout, false, settings.UpstreamProxy)
-	if sample.Success {
-		if _, allowed := settings.HTTPStatusCodes[sample.StatusCode]; !allowed {
-			sample.Success = false
-			sample.FailedStage = "status"
-			sample.Message = fmt.Sprintf("HTTP 状态码 %d 不符合筛选条件", sample.StatusCode)
-		}
+	return applyCDNTargetStatusFilter(sample, settings.HTTPStatusCodes)
+}
+
+func applyCDNTargetStatusFilter(sample CDNProbeSample, allowedStatusCodes map[int]struct{}) CDNProbeSample {
+	if !sample.Success {
+		return sample
+	}
+	if sample.CloudflareErrorCode == 1034 {
+		sample.Success = false
+		sample.FailedStage = "edge_validation"
+		sample.Message = "Cloudflare Error 1034: Edge IP Restricted"
+		return sample
+	}
+	if _, allowed := allowedStatusCodes[sample.StatusCode]; !allowed {
+		sample.Success = false
+		sample.FailedStage = "status"
+		sample.Message = fmt.Sprintf("HTTP 状态码 %d 不符合筛选条件", sample.StatusCode)
 	}
 	return sample
 }
@@ -978,6 +994,8 @@ func filterCDNLatencyResults(result *CDNOptimizeResult, settings cdnOptimizeSett
 		probe := &result.Results[index]
 		reason := ""
 		switch {
+		case probe.CloudflareErrorCode == 1034:
+			reason = "Cloudflare Error 1034: Edge IP Restricted"
 		case probe.LossRate > settings.MaxLossRate:
 			reason = "丢包率超过上限"
 		case probe.AverageLatencyMS < float64(settings.MinDelayMS):
@@ -1290,9 +1308,10 @@ func runCDNProbeWithRoute(parent context.Context, targetURL, domain, candidateIP
 	sample.HTTPProtocol = response.Proto
 	sample.CFRay = response.Header.Get("CF-Ray")
 	sample.CDNProvider, sample.CFColo = cdnProviderAndColo(response.Header)
+	var responseBody []byte
 	var readErr error
-	if readBody {
-		_, readErr = io.Copy(io.Discard, io.LimitReader(response.Body, cdnResponseLimit))
+	if readBody || response.StatusCode == http.StatusForbidden {
+		responseBody, readErr = io.ReadAll(io.LimitReader(response.Body, cdnResponseLimit))
 	}
 	sample.TotalMS = durationMS(time.Since(started))
 	if readErr != nil {
@@ -1301,6 +1320,7 @@ func runCDNProbeWithRoute(parent context.Context, targetURL, domain, candidateIP
 		sample.Error = readErr.Error()
 		return sample
 	}
+	sample.CloudflareErrorCode = detectCloudflareEdgeError(response.StatusCode, sample.CFRay, sample.CDNProvider, responseBody)
 	if response.StatusCode >= http.StatusInternalServerError {
 		sample.FailedStage = "response"
 		sample.Message = "候选节点返回服务错误"
@@ -1311,11 +1331,28 @@ func runCDNProbeWithRoute(parent context.Context, targetURL, domain, candidateIP
 	return sample
 }
 
+func detectCloudflareEdgeError(statusCode int, cfRay, provider string, body []byte) int {
+	if statusCode != http.StatusForbidden || (cfRay == "" && !strings.EqualFold(provider, "Cloudflare")) {
+		return 0
+	}
+	normalized := bytes.ToLower(body)
+	if bytes.Contains(normalized, []byte("error 1034")) || bytes.Contains(normalized, []byte("edge ip restricted")) {
+		return 1034
+	}
+	return 0
+}
+
 func finaliseCDNProbe(result *CDNProbeResult) {
 	var tcpValues, tlsValues, ttfbValues, totalValues []int64
 	var jitterTotal float64
 	var previous int64
 	for _, sample := range result.Samples {
+		if sample.StatusCode > 0 {
+			result.StatusCode = sample.StatusCode
+		}
+		if sample.CloudflareErrorCode > 0 {
+			result.CloudflareErrorCode = sample.CloudflareErrorCode
+		}
 		if sample.CFRay != "" {
 			result.VerifiedCloudflare = true
 			result.CFRay = sample.CFRay
@@ -1331,7 +1368,6 @@ func finaliseCDNProbe(result *CDNProbeResult) {
 			continue
 		}
 		result.SuccessCount++
-		result.StatusCode = sample.StatusCode
 		tcpValues = append(tcpValues, sample.TCPConnectMS)
 		tlsValues = append(tlsValues, sample.TLSHandshakeMS)
 		ttfbValues = append(ttfbValues, sample.TTFBMS)
@@ -1356,6 +1392,7 @@ func finaliseCDNProbe(result *CDNProbeResult) {
 }
 
 func finaliseCDNRanking(result *CDNOptimizeResult) {
+	resetCDNRanking(result)
 	eligible := make([]*CDNProbeResult, 0, len(result.Results))
 	baseline := bestCDNDNSBaseline(result.Results)
 	for index := range result.Results {
@@ -1442,6 +1479,21 @@ func finaliseCDNRanking(result *CDNOptimizeResult) {
 	}
 }
 
+func resetCDNRanking(result *CDNOptimizeResult) {
+	result.BestIP = ""
+	result.BaselineIP = ""
+	result.ImprovementPercent = 0
+	result.P95Improvement = 0
+	result.Confidence = ""
+	result.Finding = PatrolFinding{}
+	result.Governance = nil
+	result.Comparison = CDNOptimizeComparison{}
+	for index := range result.Results {
+		result.Results[index].Rank = 0
+		result.Results[index].Recommended = false
+	}
+}
+
 func cdnResultLess(downloadEnabled bool, left, right CDNProbeResult) bool {
 	if downloadEnabled && left.DownloadSpeedMBps != right.DownloadSpeedMBps {
 		return left.DownloadSpeedMBps > right.DownloadSpeedMBps
@@ -1485,12 +1537,62 @@ func finaliseModernCDNRecommendation(result *CDNOptimizeResult, best, baseline *
 	}
 }
 
-func validateCDNRecommendation(ctx context.Context, result *CDNOptimizeResult, targetURL, domain string, port int, upstreamProxy *url.URL) {
-	if result == nil || strings.TrimSpace(result.BestIP) == "" {
+func validateCDNRecommendations(ctx context.Context, result *CDNOptimizeResult, targetURL, domain string, settings cdnOptimizeSettings) {
+	if result == nil {
 		return
 	}
-	sample := runCDNProbeWithRoute(ctx, targetURL, domain, result.BestIP, 1, port, 5*time.Second, false, upstreamProxy)
-	applyCDNRecommendationValidation(result, sample)
+	for ctx.Err() == nil && strings.TrimSpace(result.BestIP) != "" {
+		candidateIP := result.BestIP
+		sample := runCDNProbeWithRoute(ctx, targetURL, domain, candidateIP, 1, settings.Port, 5*time.Second, false, settings.UpstreamProxy)
+		sample = applyCDNTargetStatusFilter(sample, settings.HTTPStatusCodes)
+		applyCDNRecommendationValidation(result, sample)
+		if result.TargetValidated {
+			return
+		}
+
+		candidate := bestCDNProbeByIP(result.Results, candidateIP)
+		if candidate == nil {
+			break
+		}
+		candidate.Eligible = false
+		candidate.FilterReason = cdnTargetValidationFailureReason(sample)
+		candidate.CloudflareErrorCode = sample.CloudflareErrorCode
+		if result.EligibleCount > 0 {
+			result.EligibleCount--
+		}
+		result.FilteredCount++
+		finaliseCDNRanking(result)
+	}
+	if result.BestIP == "" {
+		result.TargetValidated = false
+		result.TargetValidation = "没有候选 IP 通过当前目标域名的 Host、TLS SNI 与 Cloudflare 边缘验证"
+		result.Finding = PatrolFinding{
+			Code:    "no_target_compatible_edge",
+			Level:   "critical",
+			Title:   "没有兼容当前目标域名的候选节点",
+			Message: result.TargetValidation,
+		}
+		result.Governance = []CDNGovernanceAdvice{
+			{Action: "target_validation", Title: "检查目标域名兼容性", Detail: "确认候选 IP 支持当前域名的 Host、TLS SNI、允许状态码，并能返回 Cloudflare 边缘标识。"},
+			{Action: "candidates", Title: "更换候选 IP 后重试", Detail: "当前候选均未通过目标域名验证，请更新候选范围后重新测试。"},
+		}
+	}
+}
+
+func cdnTargetValidationFailureReason(sample CDNProbeSample) string {
+	if sample.CloudflareErrorCode == 1034 {
+		return "Cloudflare Error 1034: Edge IP Restricted"
+	}
+	if sample.Error != "" {
+		return sample.Error
+	}
+	if !sample.Success && sample.Message != "" {
+		return sample.Message
+	}
+	if sample.CFRay == "" && !strings.EqualFold(sample.CDNProvider, "Cloudflare") {
+		return "响应中未发现 CF-Ray 或 Cloudflare 边缘标识"
+	}
+	return "目标域名兼容性验证失败"
 }
 
 func compareCDNRequestChains(parent context.Context, result *CDNOptimizeResult, targetURL, domain string, port, samples int, upstreamProxy *url.URL) {
@@ -1604,6 +1706,9 @@ func applyCDNRecommendationValidation(result *CDNOptimizeResult, sample CDNProbe
 		}
 		if sample.CDNProvider != "" {
 			best.CDNProvider = sample.CDNProvider
+		}
+		if sample.CloudflareErrorCode > 0 {
+			best.CloudflareErrorCode = sample.CloudflareErrorCode
 		}
 	}
 

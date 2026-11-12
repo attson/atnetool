@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	neturl "net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -195,6 +198,20 @@ func TestFilterCDNLatencyResultsAppliesDelayLossAndColo(t *testing.T) {
 	}
 }
 
+func TestFilterCDNLatencyResultsExplainsEdgeIPRestricted(t *testing.T) {
+	result := CDNOptimizeResult{Results: []CDNProbeResult{{
+		Candidate: CDNCandidate{IP: "172.64.228.10"},
+		LossRate:  1, StatusCode: http.StatusForbidden, CloudflareErrorCode: 1034,
+	}}}
+	filterCDNLatencyResults(&result, cdnOptimizeSettings{MaxDelayMS: 9999, MaxLossRate: 1})
+	if result.Results[0].Eligible || !strings.Contains(result.Results[0].FilterReason, "Edge IP Restricted") {
+		t.Fatalf("restricted candidate should retain a specific filter reason: %+v", result.Results[0])
+	}
+	if result.EligibleCount != 0 || result.FilteredCount != 1 {
+		t.Fatalf("counts=%d eligible, %d filtered", result.EligibleCount, result.FilteredCount)
+	}
+}
+
 func TestModernCDNRankingPrefersDownloadSpeed(t *testing.T) {
 	result := CDNOptimizeResult{Mode: "tcp", DownloadEnabled: true, Domain: "example.com", Results: []CDNProbeResult{
 		{Candidate: CDNCandidate{IP: "1.1.1.1", Source: "dns"}, Eligible: true, SampleCount: 4, SuccessCount: 4, SuccessRate: 1, Sent: 4, Received: 4, AverageLatencyMS: 30, DownloadSpeedMBps: 8, DownloadTested: true},
@@ -256,6 +273,242 @@ func TestApplyCDNRecommendationValidationUpdatesRecommendedNode(t *testing.T) {
 	})
 	if !result.TargetValidated || !result.Results[0].VerifiedCloudflare || result.Results[0].CFRay != "abc-HKG" {
 		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestValidateCDNRecommendationsFallsBackAfterEdgeIPRestricted(t *testing.T) {
+	restrictedListener, err := net.Listen("tcp", "127.0.0.2:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := restrictedListener.Addr().(*net.TCPAddr).Port
+	healthyListener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.3", strconv.Itoa(port)))
+	if err != nil {
+		restrictedListener.Close()
+		t.Fatal(err)
+	}
+	restrictedServer := startCDNTestServer(t, restrictedListener, func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("CF-Ray", "restricted-NRT")
+		writer.Header().Set("Server", "cloudflare")
+		writer.WriteHeader(http.StatusForbidden)
+		_, _ = writer.Write([]byte("<html><h1>Error 1034</h1><h2>Edge IP Restricted</h2></html>"))
+	})
+	healthyServer := startCDNTestServer(t, healthyListener, func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("CF-Ray", "healthy-HKG")
+		writer.Header().Set("Server", "cloudflare")
+		writer.WriteHeader(http.StatusOK)
+	})
+	defer restrictedServer.Close()
+	defer healthyServer.Close()
+
+	result := CDNOptimizeResult{
+		Mode: "tcp", Domain: "example.com", EligibleCount: 2,
+		Results: []CDNProbeResult{
+			{Candidate: CDNCandidate{IP: "127.0.0.2"}, Eligible: true, SampleCount: 4, SuccessCount: 4, SuccessRate: 1, AverageLatencyMS: 10},
+			{Candidate: CDNCandidate{IP: "127.0.0.3"}, Eligible: true, SampleCount: 4, SuccessCount: 4, SuccessRate: 1, AverageLatencyMS: 20},
+		},
+	}
+	finaliseCDNRanking(&result)
+	validateCDNRecommendations(
+		context.Background(),
+		&result,
+		fmt.Sprintf("http://example.com:%d/check", port),
+		"example.com",
+		cdnOptimizeSettings{Port: port, HTTPStatusCodes: map[int]struct{}{http.StatusOK: {}}},
+	)
+
+	if result.BestIP != "127.0.0.3" || !result.TargetValidated {
+		t.Fatalf("best candidate should fall back to healthy edge: %+v", result)
+	}
+	restricted := bestCDNProbeByIP(result.Results, "127.0.0.2")
+	if restricted == nil || restricted.Eligible || restricted.CloudflareErrorCode != 1034 || !strings.Contains(restricted.FilterReason, "Edge IP Restricted") {
+		t.Fatalf("restricted candidate should be excluded with a specific reason: %+v", restricted)
+	}
+}
+
+func TestValidateCDNRecommendationsAcceptsAllowedOrdinaryForbidden(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("CF-Ray", "waf-HKG")
+		writer.Header().Set("Server", "cloudflare")
+		writer.WriteHeader(http.StatusForbidden)
+		_, _ = writer.Write([]byte("request blocked by an application rule"))
+	}))
+	defer server.Close()
+	serverURL, err := neturl.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(serverURL.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := CDNOptimizeResult{
+		Mode: "tcp", Domain: "example.com", EligibleCount: 1,
+		Results: []CDNProbeResult{{
+			Candidate: CDNCandidate{IP: serverURL.Hostname()}, Eligible: true,
+			SampleCount: 4, SuccessCount: 4, SuccessRate: 1, AverageLatencyMS: 10,
+		}},
+	}
+	finaliseCDNRanking(&result)
+	validateCDNRecommendations(
+		context.Background(), &result, "http://example.com/check", "example.com",
+		cdnOptimizeSettings{Port: port, HTTPStatusCodes: map[int]struct{}{http.StatusForbidden: {}}},
+	)
+	if !result.TargetValidated || result.BestIP != serverURL.Hostname() || result.Results[0].CloudflareErrorCode != 0 {
+		t.Fatalf("allowed ordinary 403 should remain eligible: %+v", result)
+	}
+}
+
+func TestValidateCDNRecommendationsReturnsNoRecommendationWhenAllEdgesRestricted(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("CF-Ray", "restricted-SIN")
+		writer.Header().Set("Server", "cloudflare")
+		writer.WriteHeader(http.StatusForbidden)
+		_, _ = writer.Write([]byte("<h1>Error 1034</h1><h2>Edge IP Restricted</h2>"))
+	}))
+	defer server.Close()
+	serverURL, err := neturl.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(serverURL.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := CDNOptimizeResult{
+		Mode: "tcp", Domain: "example.com", EligibleCount: 1,
+		Results: []CDNProbeResult{{
+			Candidate: CDNCandidate{IP: serverURL.Hostname()}, Eligible: true,
+			SampleCount: 4, SuccessCount: 4, SuccessRate: 1, AverageLatencyMS: 10,
+		}},
+	}
+	finaliseCDNRanking(&result)
+	validateCDNRecommendations(
+		context.Background(), &result, "http://example.com/check", "example.com",
+		cdnOptimizeSettings{Port: port, HTTPStatusCodes: map[int]struct{}{http.StatusOK: {}}},
+	)
+	if result.BestIP != "" || result.TargetValidated || result.Finding.Code != "no_target_compatible_edge" {
+		t.Fatalf("all restricted candidates should produce no recommendation: %+v", result)
+	}
+	if !strings.Contains(result.TargetValidation, "没有候选 IP") || result.Finding.Message != result.TargetValidation {
+		t.Fatalf("target validation should explain exhausted compatible candidates: %+v", result)
+	}
+	if result.Finding.Title != "没有兼容当前目标域名的候选节点" || len(result.Governance) == 0 || result.Governance[0].Action != "target_validation" {
+		t.Fatalf("finding and governance should focus on target compatibility: %+v", result)
+	}
+}
+
+func TestCDNProbeDoesNotInspectPastResponseLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("CF-Ray", "bounded-LAX")
+		writer.Header().Set("Server", "cloudflare")
+		writer.WriteHeader(http.StatusForbidden)
+		_, _ = writer.Write(append(bytes.Repeat([]byte("x"), cdnResponseLimit), []byte("Error 1034 Edge IP Restricted")...))
+	}))
+	defer server.Close()
+	serverURL, err := neturl.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(serverURL.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sample := runCDNProbeWithSettings(
+		context.Background(), "http://example.com/check", "example.com", serverURL.Hostname(),
+		1, port, cdnProbeTimeout, false,
+	)
+	if sample.CloudflareErrorCode != 0 {
+		t.Fatalf("probe inspected beyond %d-byte response limit: %+v", cdnResponseLimit, sample)
+	}
+}
+
+func startCDNTestServer(t *testing.T, listener net.Listener, handler http.HandlerFunc) *http.Server {
+	t.Helper()
+	server := &http.Server{Handler: handler}
+	go func() {
+		_ = server.Serve(listener)
+	}()
+	t.Cleanup(func() {
+		_ = server.Close()
+	})
+	return server
+}
+
+func TestCDNProbeIdentifiesCloudflareEdgeIPRestricted(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("CF-Ray", "restricted-HKG")
+		writer.Header().Set("Server", "cloudflare")
+		writer.WriteHeader(http.StatusForbidden)
+		_, _ = writer.Write([]byte("<html><h1>Error 1034</h1><h2>Edge IP Restricted</h2></html>"))
+	}))
+	defer server.Close()
+
+	serverURL, err := neturl.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(serverURL.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sample := runCDNProbeWithSettings(
+		context.Background(),
+		"http://example.com/check",
+		"example.com",
+		serverURL.Hostname(),
+		1,
+		port,
+		cdnProbeTimeout,
+		false,
+	)
+	if sample.CloudflareErrorCode != 1034 {
+		t.Fatalf("cloudflare error code = %d, want 1034; sample=%+v", sample.CloudflareErrorCode, sample)
+	}
+}
+
+func TestCDNHTTPingRejectsEdgeIPRestrictedWhenForbiddenIsAllowed(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("CF-Ray", "restricted-NRT")
+		writer.Header().Set("Server", "cloudflare")
+		writer.WriteHeader(http.StatusForbidden)
+		_, _ = writer.Write([]byte("<html><h1>Error 1034</h1><h2>Edge IP Restricted</h2></html>"))
+	}))
+	defer server.Close()
+
+	serverURL, err := neturl.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := strconv.Atoi(serverURL.Port())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sample := runCDNHTTPing(
+		context.Background(),
+		"http://example.com/check",
+		"example.com",
+		serverURL.Hostname(),
+		1,
+		cdnOptimizeSettings{Port: port, HTTPStatusCodes: map[int]struct{}{http.StatusForbidden: {}}},
+	)
+	if sample.Success || sample.FailedStage != "edge_validation" || sample.CloudflareErrorCode != 1034 {
+		t.Fatalf("restricted edge should fail HTTPing even when 403 is allowed: %+v", sample)
+	}
+}
+
+func TestFinaliseCDNProbePreservesCloudflareEdgeError(t *testing.T) {
+	result := CDNProbeResult{
+		SampleCount: 1,
+		Samples: []CDNProbeSample{{
+			Success: false, StatusCode: http.StatusForbidden, CloudflareErrorCode: 1034,
+			FailedStage: "edge_validation", Message: "Cloudflare Error 1034: Edge IP Restricted",
+			CFRay: "restricted-SJC", CDNProvider: "Cloudflare",
+		}},
+	}
+	finaliseCDNProbe(&result)
+	if result.CloudflareErrorCode != 1034 {
+		t.Fatalf("candidate cloudflare error code = %d, want 1034; result=%+v", result.CloudflareErrorCode, result)
 	}
 }
 

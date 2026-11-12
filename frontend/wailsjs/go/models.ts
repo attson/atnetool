@@ -377,6 +377,7 @@ export namespace main {
 	    ttfb_ms: number;
 	    total_ms: number;
 	    status_code: number;
+	    cloudflare_error_code?: number;
 	    http_protocol?: string;
 	    cf_ray?: string;
 	    cf_colo?: string;
@@ -400,6 +401,7 @@ export namespace main {
 	        this.ttfb_ms = source["ttfb_ms"];
 	        this.total_ms = source["total_ms"];
 	        this.status_code = source["status_code"];
+	        this.cloudflare_error_code = source["cloudflare_error_code"];
 	        this.http_protocol = source["http_protocol"];
 	        this.cf_ray = source["cf_ray"];
 	        this.cf_colo = source["cf_colo"];
@@ -422,6 +424,7 @@ export namespace main {
 	    p95_total_ms: number;
 	    jitter_ms: number;
 	    status_code: number;
+	    cloudflare_error_code?: number;
 	    cf_ray?: string;
 	    cf_colo?: string;
 	    verified_cloudflare: boolean;
@@ -461,6 +464,7 @@ export namespace main {
 	        this.p95_total_ms = source["p95_total_ms"];
 	        this.jitter_ms = source["jitter_ms"];
 	        this.status_code = source["status_code"];
+	        this.cloudflare_error_code = source["cloudflare_error_code"];
 	        this.cf_ray = source["cf_ray"];
 	        this.cf_colo = source["cf_colo"];
 	        this.verified_cloudflare = source["verified_cloudflare"];
